@@ -6,8 +6,10 @@ from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 
 # 1. Configuración de IA y Base de Datos
+# Configuración ultra-compatible
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
+# Probamos con el nombre que Google está forzando ahora
+model = genai.GenerativeModel('gemini-1.5-flash-latest') 
 
 # Conexión a Google Sheets (Usará la URL de los Secrets)
 conn = st.connection("gsheets", type=GSheetsConnection)
