@@ -56,8 +56,8 @@ with tab1:
                 f_talla = st.text_input("Talla")
             with col2:
                 f_col = st.text_input("Color", value=st.session_state.temp['col'])
-                f_compra = st.number_input("Precio Compra €", format="%.2f")
-                f_venta = st.number_input("Precio Venta €", format="%.2f")
+                f_compra = st.number_input("Precio Compra €", format="%.2f", min_value=0.0)
+                f_venta = st.number_input("Precio Venta €", format="%.2f", min_value=0.0)
             
             f_stock = st.number_input("Stock", min_value=1, value=1)
 
