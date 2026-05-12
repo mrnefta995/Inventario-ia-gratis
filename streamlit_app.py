@@ -9,7 +9,7 @@ from streamlit_gsheets import GSheetsConnection
 # Configuración ultra-compatible
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 # Probamos con el nombre que Google está forzando ahora
-model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+model = genai.GenerativeModel(model_name='gemini-1.5-pro')
 
 # Conexión a Google Sheets (Usará la URL de los Secrets)
 conn = st.connection("gsheets", type=GSheetsConnection)
