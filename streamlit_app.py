@@ -94,6 +94,39 @@ with tab1:
                     st.rerun()
 
 with tab2:
-    st.subheader("Control de Stock")
+    st.subheader("📋 Control de Stock y Finanzas")
     df_ver = leer_datos()
-    st.dataframe(df_ver, use_container_width=True)
+    
+    if not df_ver.empty:
+        # Mostramos la tabla con configuración de columnas para los Euros
+        st.dataframe(
+            df_ver,
+            column_config={
+                "ID": st.column_config.TextColumn("ID"),
+                "Categoria": st.column_config.TextColumn("Categoría"),
+                "Fecha": st.column_config.TextColumn("Fecha Registro"),
+                "Talla": st.column_config.TextColumn("Talla"),
+                "Color": st.column_config.TextColumn("Color"),
+                "Compra": st.column_config.NumberColumn(
+                    "Precio Compra",
+                    format="%.2f €"  # <--- Esto añade el formato Euro
+                ),
+                "Venta": st.column_config.NumberColumn(
+                    "Precio Venta",
+                    format="%.2f €"  # <--- Esto añade el formato Euro
+                ),
+                "Stock": st.column_config.NumberColumn("Unidades", format="%d uds"),
+                "Image_Ref": st.column_config.TextColumn("Referencia")
+            },
+            use_container_width=True,
+            hide_index=True
+        )
+        
+        # --- Cálculo rápido de inversión ---
+        total_inv = (df_ver["Compra"] * df_ver["Stock"]).sum()
+        st.divider()
+        st.metric("Inversión Total en Almacén", f"{total_inv:,.2f} €")
+        
+    else:
+        st.info("El inventario está vacío. Registra tu primera prenda.")
+
