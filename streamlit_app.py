@@ -7,7 +7,7 @@ from streamlit_gsheets import GSheetsConnection
 
 # Configuración IA
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-3-flash-preview')
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 st.title("👕 Almacén Inteligente con Referencia Visual")
