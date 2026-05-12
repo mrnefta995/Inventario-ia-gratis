@@ -10,7 +10,7 @@ from streamlit_gsheets import GSheetsConnection
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     # Usamos el nombre de modelo más estable para la API gratuita
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash-8b')
 else:
     st.error("⚠️ No se encontró la GEMINI_API_KEY en los Secrets de Streamlit.")
 
