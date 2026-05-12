@@ -130,3 +130,13 @@ with tab2:
     else:
         st.info("El inventario está vacío. Registra tu primera prenda.")
 
+    # Botón para descargar el inventario en formato CSV
+    csv = df_ver.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Descargar Inventario (CSV)",
+        data=csv,
+        file_name=f"inventario_{datetime.now().strftime('%d_%m_%Y')}.csv",
+        mime="text/csv",
+    )
+
+
