@@ -80,27 +80,27 @@ with tab1:
                 else:
                     with st.spinner("Subiendo imagen y guardando datos..."):
                         try:
-                          # 1. Subir a Cloudinary (Usamos .getvalue() para leer el archivo correctamente)
-                          resultado_subida = cloudinary.uploader.upload(
-                              foto.getvalue(), 
-                              folder="inventario_ropa" # Esto crea una carpeta en tu Cloudinary
-                          )
-                          url_foto = resultado_subida['secure_url'] 
-              
-                          # 2. El resto de tu lógica de guardado...
-                          df_actual = leer_datos()
-                          nueva_fila = {
-                              "ID": str(f_id),
-                              "Categoria": str(f_cat),
-                              "Fecha": datetime.now().strftime("%d/%m/%Y"),
-                              "Talla": str(f_talla),
-                              "Color": str(f_col),
-                              "Compra": float(f_compra),
-                              "Venta": float(f_venta),
-                              "Stock": int(f_stock),
-                              "Image_Ref": url_foto 
-                          }
-                    
+                            # 1. Subir a Cloudinary (Usamos .getvalue() para leer el archivo correctamente)
+                            resultado_subida = cloudinary.uploader.upload(
+                                foto.getvalue(), 
+                                folder="inventario_ropa" # Esto crea una carpeta en tu Cloudinary
+                            )
+                            url_foto = resultado_subida['secure_url'] 
+                
+                            # 2. El resto de tu lógica de guardado...
+                            df_actual = leer_datos()
+                            nueva_fila = {
+                                "ID": str(f_id),
+                                "Categoria": str(f_cat),
+                                "Fecha": datetime.now().strftime("%d/%m/%Y"),
+                                "Talla": str(f_talla),
+                                "Color": str(f_col),
+                                "Compra": float(f_compra),
+                                "Venta": float(f_venta),
+                                "Stock": int(f_stock),
+                                "Image_Ref": url_foto 
+                            }
+                   
                     # Unimos y forzamos el orden de las columnas
                     df_final = pd.concat([df_actual, pd.DataFrame([nueva_fila])], ignore_index=True)
                     columnas_orden = ["ID", "Categoria", "Fecha", "Talla", "Color", "Compra", "Venta", "Stock", "Image_Ref"]
