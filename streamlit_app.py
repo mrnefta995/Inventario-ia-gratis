@@ -5,108 +5,72 @@ from PIL import Image
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 
-# --- CONFIGURACIÓN DE IA ---
-# Forzamos la configuración de la API
-if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Usamos el nombre de modelo más estable para la API gratuita
-    model = genai.GenerativeModel('gemini-3-flash-preview')
-else:
-    st.error("⚠️ No se encontró la GEMINI_API_KEY en los Secrets de Streamlit.")
+# Configuración IA
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+model = genai.GenerativeModel('gemini-1.5-flash')
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- CONEXIÓN A GOOGLE SHEETS ---
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-except Exception as e:
-    st.error(f"Error de conexión a Sheets: {e}")
+st.title("👕 Almacén Inteligente con Referencia Visual")
 
-st.set_page_config(page_title="Inventario IA Pro", layout="wide")
-st.title("👕 Gestor de Inventario Inteligente (Gratis)")
-
-# Función para leer datos de Google Sheets
+# --- FUNCIONES CLAVE ---
 def leer_datos():
     return conn.read(spreadsheet=st.secrets["spreadsheet_url"])
 
 # --- PESTAÑAS ---
-tab1, tab2 = st.tabs(["➕ Añadir Prenda", "📋 Almacén Real"])
+tab1, tab2 = st.tabs(["➕ Registro", "📋 Inventario"])
 
 with tab1:
-    foto = st.file_uploader("Saca una foto o sube imagen", type=['jpg', 'jpeg', 'png'])
-    
+    foto = st.file_uploader("Foto de la prenda", type=['jpg', 'png', 'jpeg'])
     if foto:
-        img_pil = Image.open(foto)
-        st.image(img_pil, width=250, caption="Imagen cargada")
-        
-        if st.button("🤖 Analizar con IA"):
-            with st.spinner("La IA está clasificando la prenda..."):
-                try:
-                    # Prompt optimizado para evitar errores de lectura
-                    prompt = "Analiza esta prenda. Responde solo con este formato: CATEGORIA, COLOR. Ejemplo: Camiseta, Rojo"
-                    response = model.generate_content([prompt, img_pil])
-                    
-                    # Procesar respuesta
-                    resultado = response.text.split(',')
-                    categoria_ia = resultado[0].strip() if len(resultado) > 0 else ""
-                    color_ia = resultado[1].strip() if len(resultado) > 1 else ""
-                    
-                    # Generar ID automático sugerido
-                    id_sugerido = f"REF-{datetime.now().strftime('%M%S')}"
-                    
-                    st.session_state.temp = {
-                        "id": id_sugerido,
-                        "cat": categoria_ia,
-                        "col": color_ia
-                    }
-                except Exception as e:
-                    st.error(f"Hubo un problema con la IA: {e}")
-                    st.info("Revisa si tu API Key de Google AI Studio es correcta.")
+        st.image(foto, width=200)
+        if st.button("🤖 Analizar"):
+            # (Mantener lógica de análisis anterior para llenar st.session_state.temp)
+            response = model.generate_content(["Responde solo: Categoria, Color", Image.open(foto)])
+            detalles = response.text.split(',')
+            st.session_state.temp = {"id": f"REF-{datetime.now().strftime('%M%S')}", "cat": detalles[0], "col": detalles[1] if len(detalles)>1 else ""}
 
-        # Formulario de Registro
         if 'temp' in st.session_state:
-            with st.form("form_registro"):
-                st.subheader("Confirmar Datos")
-                col1, col2 = st.columns(2)
-                with col1:
-                    f_id = st.text_input("ID Producto (Editable)", value=st.session_state.temp['id'])
-                    f_cat = st.text_input("Categoría", value=st.session_state.temp['cat'])
-                    f_talla = st.text_input("Talla (Escríbela aquí)")
-                with col2:
-                    f_col = st.text_input("Color", value=st.session_state.temp['col'])
-                    f_compra = st.number_input("Precio Compra (€)", min_value=0.0, step=0.01)
-                    f_venta = st.number_input("Precio Venta (€)", min_value=0.0, step=0.01)
-                    f_stock = st.number_input("Stock inicial", min_value=1, value=1)
+            with st.form("registro"):
+                f_id = st.text_input("ID Producto", value=st.session_state.temp['id'])
+                f_cat = st.text_input("Categoría", value=st.session_state.temp['cat'])
+                f_talla = st.text_input("Talla")
+                f_compra = st.number_input("Compra €", step=0.01)
+                f_venta = st.number_input("Venta €", step=0.01)
+                f_stock = st.number_input("Stock", min_value=1)
                 
-                if st.form_submit_button("✅ Guardar en Google Sheets"):
-                    if not f_talla:
-                        st.warning("⚠️ Debes introducir una talla.")
+                if st.form_submit_button("✅ Guardar"):
+                    df = leer_datos()
+                    
+                    # EVITAR SOBREESCRIBIR: Verificar si el ID ya existe
+                    if f_id in df['ID'].astype(str).values:
+                        st.error(f"El ID {f_id} ya existe. Usa otro o edita en la pestaña Inventario.")
                     else:
-                        try:
-                            # Preparar nueva fila
-                            nueva_fila = pd.DataFrame([[f_id, f_cat, f_talla, f_col, f_compra, f_venta, f_stock]], 
-                                                    columns=["ID", "Categoria", "Talla", "Color", "Compra", "Venta", "Stock"])
-                            
-                            # Leer datos actuales, añadir y subir
-                            df_actual = leer_datos()
-                            df_final = pd.concat([df_actual, nueva_fila], ignore_index=True)
-                            conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
-                            
-                            st.success(f"¡Guardado con éxito! ID: {f_id}")
-                            del st.session_state.temp # Limpiar formulario
-                        except Exception as e:
-                            st.error(f"Error al guardar: {e}")
+                        nueva_fila = {
+                            "ID": f_id, "Categoria": f_cat, "Talla": f_talla, 
+                            "Color": st.session_state.temp['col'], "Compra": f_compra, 
+                            "Venta": f_venta, "Stock": f_stock, "Imagen_Ref": "Ver en App"
+                        }
+                        df_final = pd.concat([df, pd.DataFrame([nueva_fila])], ignore_index=True)
+                        # Forzar orden de columnas para evitar duplicados
+                        df_final = df_final[["ID", "Categoria", "Talla", "Color", "Compra", "Venta", "Stock", "Imagen_Ref"]]
+                        conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
+                        st.success("Guardado correctamente")
 
 with tab2:
-    st.subheader("Inventario en Google Sheets")
-    try:
-        df = leer_datos()
-        # Buscador básico
-        buscar = st.text_input("Buscar por ID")
-        if buscar:
-            df = df[df['ID'].str.contains(buscar, case=False, na=False)]
-        
-        st.dataframe(df, use_container_width=True)
-        
-        if st.button("🔄 Refrescar Inventario"):
-            st.rerun()
-    except:
-        st.info("Aún no hay datos. Registra tu primera prenda.")
+    st.subheader("Buscador de Referencia")
+    df_ver = leer_datos()
+    id_buscar = st.text_input("Introduce ID para ver detalles")
+    
+    if id_buscar:
+        item = df_ver[df_ver['ID'].astype(str) == id_buscar]
+        if not item.empty:
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.write(item)
+            with col_b:
+                st.info("Nota: Para ver la imagen real aquí, necesitaríamos guardar la foto en un servidor como Google Drive o Imgur.")
+        else:
+            st.warning("ID no encontrado.")
+    
+    st.divider()
+    st.dataframe(df_ver)
