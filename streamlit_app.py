@@ -144,12 +144,15 @@ with tab2:
                     format="%.2f €"  # <--- Esto añade el formato Euro
                 ),
                 "Stock": st.column_config.NumberColumn("Unidades", format="%d uds"),
-                "Image_Ref": st.column_config.TextColumn("Referencia")
-            },
+                "Image_Ref": st.column_config.TextColumn("Vista Previa", 
+                    help="Foto almacenada en la nube"
+                ),
             use_container_width=True,
             hide_index=True
         )
-        
+        # Botón opcional para refrescar si haces cambios manuales en el Sheets
+        if st.button("🔄 Actualizar lista"):
+            st.rerun()
         # --- Cálculo rápido de inversión ---
         total_inv = (df_ver["Compra"] * df_ver["Stock"]).sum()
         st.divider()
@@ -157,6 +160,7 @@ with tab2:
         
     else:
         st.info("El inventario está vacío. Registra tu primera prenda.")
+        st.info("Aún no hay prendas registradas.")
 
     # Botón para descargar el inventario en formato CSV
     csv = df_ver.to_csv(index=False).encode('utf-8')
