@@ -79,7 +79,7 @@ with tab1:
                     st.warning("⚠️ Introduce la talla.")
                 else:
                     with st.spinner("Subiendo imagen y guardando datos..."):
-                      try:
+                        try:
                           # 1. Subir a Cloudinary (Usamos .getvalue() para leer el archivo correctamente)
                           resultado_subida = cloudinary.uploader.upload(
                               foto.getvalue(), 
