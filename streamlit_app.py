@@ -149,7 +149,7 @@ with tab2:
                 ),
             use_container_width=True,
             hide_index=True
-        )
+          )
         # Botón opcional para refrescar si haces cambios manuales en el Sheets
         if st.button("🔄 Actualizar lista"):
             st.rerun()
