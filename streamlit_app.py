@@ -78,23 +78,28 @@ with tab1:
                 elif not f_talla:
                     st.warning("⚠️ Introduce la talla.")
                 else:
-                    with st.spinner("Subiendo imagen a la nube..."):
-                        # 1. Subir a Cloudinary
-                        resultado_subida = cloudinary.uploader.upload(foto)
-                        url_foto = resultado_subida['secure_url'] # Esta es la URL mágica
-                
-                        # 2. Crear nueva fila con la URL real
-                        nueva_fila = {
-                            "ID": str(f_id),
-                            "Categoria": str(f_cat),
-                            "Fecha": datetime.now().strftime("%d/%m/%Y"),
-                            "Talla": str(f_talla),
-                            "Color": str(f_col),
-                            "Compra": float(f_compra),
-                            "Venta": float(f_venta),
-                            "Stock": int(f_stock),
-                            "Image_Ref": url_foto # <--- Ahora guardamos el enlace
-                        }
+                    with st.spinner("Subiendo imagen y guardando datos..."):
+                      try:
+                          # 1. Subir a Cloudinary (Usamos .getvalue() para leer el archivo correctamente)
+                          resultado_subida = cloudinary.uploader.upload(
+                              foto.getvalue(), 
+                              folder="inventario_ropa" # Esto crea una carpeta en tu Cloudinary
+                          )
+                          url_foto = resultado_subida['secure_url'] 
+              
+                          # 2. El resto de tu lógica de guardado...
+                          df_actual = leer_datos()
+                          nueva_fila = {
+                              "ID": str(f_id),
+                              "Categoria": str(f_cat),
+                              "Fecha": datetime.now().strftime("%d/%m/%Y"),
+                              "Talla": str(f_talla),
+                              "Color": str(f_col),
+                              "Compra": float(f_compra),
+                              "Venta": float(f_venta),
+                              "Stock": int(f_stock),
+                              "Image_Ref": url_foto 
+                          }
                     
                     # Unimos y forzamos el orden de las columnas
                     df_final = pd.concat([df_actual, pd.DataFrame([nueva_fila])], ignore_index=True)
