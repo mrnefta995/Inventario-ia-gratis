@@ -9,7 +9,7 @@ from streamlit_gsheets import GSheetsConnection
 # Configuración ultra-compatible
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 # Probamos con el nombre que Google está forzando ahora
-model = genai.GenerativeModel('gemini-1.5-flash-latest') 
+model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
 
 # Conexión a Google Sheets (Usará la URL de los Secrets)
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -31,23 +31,25 @@ with tab1:
         st.image(img, width=200)
         
         if st.button("🤖 Analizar Prenda"):
-            with st.spinner("Leyendo prenda..."):
+            with st.spinner("Conectando con Google Gemini..."):
                 try:
-                    # Usamos el nombre directo del modelo
-                    model_fast = genai.GenerativeModel('gemini-1.5-flash')
-                    prompt = "Analiza esta prenda. Responde solo: Categoria, Color."
+                    # Preparar la imagen para la API
+                    img_pil = Image.open(foto)
                     
-                    # Mandamos la imagen directamente
-                    response = model_fast.generate_content([prompt, Image.open(foto)])
+                    # Llamada directa
+                    prompt = "Analiza la prenda de la foto. Responde solo con: Categoría, Color."
+                    response = model.generate_content([prompt, img_pil])
                     
-                    if response.text:
+                    # Verificamos si hay respuesta
+                    if response:
                         st.session_state.temp = {
                             "detalles": response.text,
                             "id": f"REF-{datetime.now().strftime('%M%S')}"
                         }
                         st.rerun()
                 except Exception as e:
-                    st.error(f"Nota: Si sale error 404, prueba a cambiar el nombre del modelo a 'gemini-1.5-pro'. Error actual: {e}")
+                    st.error(f"Error técnico: {e}")
+                    st.info("Prueba a cambiar el nombre del modelo en el código a 'gemini-1.5-pro' si el error 404 persiste.")
 
         if 'temp' in st.session_state:
             with st.form("registro"):
