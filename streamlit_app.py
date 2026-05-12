@@ -30,20 +30,22 @@ with tab1:
         
         if st.button("🤖 Analizar Prenda"):
             with st.spinner("Leyendo prenda..."):
-                # Ensure the prompt and image arrive correctly
-                prompt = "Analiza esta prenda de ropa. Responde SOLO con: Categoria, Color. Ejemplo: Camiseta, Azul"
-                
                 try:
-                    # Use 'foto' directly (the uploaded file) instead of 'img' (Pillow)
-                    response = model.generate_content([prompt, Image.open(foto)])
+                    # Usamos el nombre directo del modelo
+                    model_fast = genai.GenerativeModel('gemini-1.5-flash')
+                    prompt = "Analiza esta prenda. Responde solo: Categoria, Color."
                     
-                    st.session_state.temp = {
-                        "detalles": response.text,
-                        "id": f"REF-{datetime.now().strftime('%M%S')}"
-                    }
-                    st.rerun() # Force reload to show the form
+                    # Mandamos la imagen directamente
+                    response = model_fast.generate_content([prompt, Image.open(foto)])
+                    
+                    if response.text:
+                        st.session_state.temp = {
+                            "detalles": response.text,
+                            "id": f"REF-{datetime.now().strftime('%M%S')}"
+                        }
+                        st.rerun()
                 except Exception as e:
-                    st.error(f"Error de la IA: {e}")
+                    st.error(f"Nota: Si sale error 404, prueba a cambiar el nombre del modelo a 'gemini-1.5-pro'. Error actual: {e}")
 
         if 'temp' in st.session_state:
             with st.form("registro"):
