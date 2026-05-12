@@ -7,7 +7,7 @@ from streamlit_gsheets import GSheetsConnection
 
 # 1. Configuración de IA y Base de Datos
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
 
 # Conexión a Google Sheets (Usará la URL de los Secrets)
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -29,12 +29,21 @@ with tab1:
         st.image(img, width=200)
         
         if st.button("🤖 Analizar Prenda"):
-            prompt = "Analiza esta prenda. Responde solo: Categoria, Color."
-            response = model.generate_content([prompt, img])
-            st.session_state.temp = {
-                "detalles": response.text.split(','),
-                "id": f"REF-{datetime.now().strftime('%M%S')}"
-            }
+            with st.spinner("Leyendo prenda..."):
+                # Ensure the prompt and image arrive correctly
+                prompt = "Analiza esta prenda de ropa. Responde SOLO con: Categoria, Color. Ejemplo: Camiseta, Azul"
+                
+                try:
+                    # Use 'foto' directly (the uploaded file) instead of 'img' (Pillow)
+                    response = model.generate_content([prompt, Image.open(foto)])
+                    
+                    st.session_state.temp = {
+                        "detalles": response.text,
+                        "id": f"REF-{datetime.now().strftime('%M%S')}"
+                    }
+                    st.rerun() # Force reload to show the form
+                except Exception as e:
+                    st.error(f"Error de la IA: {e}")
 
         if 'temp' in st.session_state:
             with st.form("registro"):
