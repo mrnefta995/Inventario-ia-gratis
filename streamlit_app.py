@@ -146,7 +146,7 @@ with tab2:
                 "Stock": st.column_config.NumberColumn("Unidades", format="%d uds"),
                 "Image_Ref": st.column_config.TextColumn("Vista Previa", 
                     help="Foto almacenada en la nube"
-                ),
+            },
             use_container_width=True,
             hide_index=True
           )
