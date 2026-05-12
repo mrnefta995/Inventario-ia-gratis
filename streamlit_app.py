@@ -73,22 +73,22 @@ with tab1:
             if st.form_submit_button("✅ Guardar en Almacén"):
                 df_actual = leer_datos()
                 
+                # 1. Validaciones previas
                 if f_id in df_actual['ID'].astype(str).values:
                     st.error("⚠️ El ID ya existe.")
                 elif not f_talla:
                     st.warning("⚠️ Introduce la talla.")
                 else:
-                    with st.spinner("Subiendo imagen y guardando datos..."):
-                        try:
-                            # 1. Subir a Cloudinary (Usamos .getvalue() para leer el archivo correctamente)
+                    try:
+                        with st.spinner("Subiendo imagen y guardando datos..."):
+                            # 2. Subida a Cloudinary
                             resultado_subida = cloudinary.uploader.upload(
                                 foto.getvalue(), 
-                                folder="inventario_ropa" # Esto crea una carpeta en tu Cloudinary
+                                folder="inventario_ropa"
                             )
                             url_foto = resultado_subida['secure_url'] 
                 
-                            # 2. El resto de tu lógica de guardado...
-                            df_actual = leer_datos()
+                            # 3. Preparar la nueva fila con el orden correcto de columnas
                             nueva_fila = {
                                 "ID": str(f_id),
                                 "Categoria": str(f_cat),
@@ -100,17 +100,26 @@ with tab1:
                                 "Stock": int(f_stock),
                                 "Image_Ref": url_foto 
                             }
-                   
-                    # Unimos y forzamos el orden de las columnas
-                    df_final = pd.concat([df_actual, pd.DataFrame([nueva_fila])], ignore_index=True)
-                    columnas_orden = ["ID", "Categoria", "Fecha", "Talla", "Color", "Compra", "Venta", "Stock", "Image_Ref"]
-                    df_final = df_final[columnas_orden]
-                    
-                    conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
-                    
-                    st.success(f"¡Guardado con éxito el día {nueva_fila['Fecha']}!")
-                    del st.session_state.temp
-                    st.rerun()
+
+                            # 4. Unir datos y asegurar orden de columnas (evita duplicados)
+                            df_final = pd.concat([df_actual, pd.DataFrame([nueva_fila])], ignore_index=True)
+                            columnas_orden = ["ID", "Categoria", "Fecha", "Talla", "Color", "Compra", "Venta", "Stock", "Image_Ref"]
+                            df_final = df_final[columnas_orden]
+
+                            # 5. Actualizar Google Sheets
+                            conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
+                            
+                            st.success(f"¡Guardado con éxito! ID: {f_id}")
+                            st.balloons()
+                            
+                            # Limpiar y recargar
+                            if 'temp' in st.session_state:
+                                del st.session_state.temp
+                            st.rerun()
+
+                    except Exception as e:
+                        st.error(f"❌ Error crítico al guardar: {e}")
+
 
 with tab2:
     st.subheader("📋 Control de Stock y Finanzas")
