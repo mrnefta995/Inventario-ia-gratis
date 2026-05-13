@@ -175,7 +175,7 @@ with tab2:
             else:
                 st.error("ID no encontrado en el sistema.")
     else:
-        st.info("Aún no hay prendas registradas."
+        st.info("Aún no hay prendas registradas.")
         # Botón opcional para refrescar si haces cambios manuales en el Sheets
         if st.button("🔄 Actualizar lista"):
             st.rerun()
