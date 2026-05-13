@@ -59,10 +59,17 @@ with tab1:
 
     st.divider()
 
-    # --- CÁLCULO DE NUEVO ID (Basado en tu lógica actual) ---
-    if not df_inventario.empty:
-        nuevo_id = int(df_inventario["ID"].max()) + 1
-    else:
+    # --- CÁLCULO DE NUEVO ID (Versión Robusta) ---
+    try:
+        # Intentamos obtener el máximo, eliminando nulos y asegurando que sea numérico
+        ids_numericos = pd.to_numeric(df_inventario["ID"], errors='coerce').dropna()
+        
+        if not ids_numericos.empty:
+            nuevo_id = int(ids_numericos.max()) + 1
+        else:
+            nuevo_id = 1
+    except Exception:
+        # Si todo falla (por ejemplo, si la columna no existe), empezamos en 1
         nuevo_id = 1
 
     # --- OPERATIVA A: REGISTRO POR IMAGEN ---
