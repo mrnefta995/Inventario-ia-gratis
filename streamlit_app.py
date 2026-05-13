@@ -166,20 +166,6 @@ with tab2:
             else:
                 st.error("No se encontró el ID.")
 
-        else:
-            st.info("Aún no hay prendas registradas.")
-        # Botón opcional para refrescar si haces cambios manuales en el Sheets
-        if st.button("🔄 Actualizar lista"):
-            st.rerun()
-        # --- Cálculo rápido de inversión ---
-        total_inv = (df_ver["Compra"] * df_ver["Stock"]).sum()
-        st.divider()
-        st.metric("Inversión Total en Almacén", f"{total_inv:,.2f} €")
-        
-    else:
-        st.info("El inventario está vacío. Registra tu primera prenda.")
-        st.info("Aún no hay prendas registradas.")
-
         st.divider()
 
         # 2. SELECTOR PARA EDITAR O BORRAR
@@ -218,6 +204,20 @@ with tab2:
                         conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_nuevo)
                         st.warning(f"Producto {id_seleccionado} eliminado.")
                         st.rerun()
+
+        else:
+            st.info("Aún no hay prendas registradas.")
+        # Botón opcional para refrescar si haces cambios manuales en el Sheets
+        if st.button("🔄 Actualizar lista"):
+            st.rerun()
+        # --- Cálculo rápido de inversión ---
+        total_inv = (df_ver["Compra"] * df_ver["Stock"]).sum()
+        st.divider()
+        st.metric("Inversión Total en Almacén", f"{total_inv:,.2f} €")
+        
+    else:
+        st.info("El inventario está vacío. Registra tu primera prenda.")
+        st.info("Aún no hay prendas registradas.")
 
         # 3. BOTÓN DE DESCARGA (Exportar)
         st.divider()
