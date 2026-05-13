@@ -68,7 +68,6 @@ with tab1:
 
 
     # --- OPERATIVA A: REGISTRO POR IMAGEN ---
-    # --- OPERATIVA A: REGISTRO POR IMAGEN ---
     if st.session_state.modo_registro == "imagen":
         st.subheader("Registro Inteligente e Histórico")
         
@@ -142,8 +141,11 @@ with tab1:
                         st.markdown(f"**📅 Registro:**\n{art_previa['Fecha']}")
                     
                     st.divider()
+                    # Botón centrado o en su columna
                     if st.button("👁️ Visualizar Imagen Almacenada", key="btn_ver_previa"):
-                        st.image(art_previa['Image_Ref'], use_container_width=True, caption=f"Foto del ID {art_previa['ID']}")
+                        # CAMBIO CLAVE AQUÍ: Usamos un ancho fijo para no expandirla
+                        # width=250 suele ser un buen tamaño para visualizar detalles sin exagerar
+                        st.image(art_previa['Image_Ref'], width=250, caption=f"Foto del ID {art_previa['ID']}")
 
             # 4. FORMULARIO DE REGISTRO
             with st.form("form_ia_v4"):
