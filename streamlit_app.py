@@ -188,13 +188,21 @@ with tab2:
             item_index = df_ver.index[df_ver['ID'].astype(str) == seleccion].tolist()
             datos = df_ver.loc[item_index]
 
-            col_img, col_edit = st.columns([1, 2])
+            col_img, col_edit = st.columns([1, 2])# Damos un poco más de espacio al editor
+
 
             with col_img:
                 st.image(datos["Image_Ref"].values[0], caption=f"ID Actual: {seleccion}", use_container_width=True)
-              # NUEVA FUNCIÓN: Subir nueva imagen para sustituir la anterior
-                nueva_foto_archivo = st.file_uploader("🔄 Cambiar imagen", type=['jpg', 'jpeg', 'png'], key="update_foto")
                 st.caption(f"📅 Fecha: {datos['Fecha'].values[0]}")
+                # INTERRUPTOR PARA HABILITAR SUBIDA
+                cambiar = st.checkbox("🔄 Cambiar imagen")
+                
+                nueva_foto_archivo = None
+                if cambiar:
+                    nueva_foto_archivo = st.file_uploader("Sube la nueva foto", type=['jpg', 'jpeg', 'png'], key="update_uploader")
+                    if nueva_foto_archivo:
+                        st.image(nueva_foto_archivo, caption="Previsualización nueva", width=150)
+
 
             with col_edit:
                 with st.form("editor_completo_v2"):
@@ -218,39 +226,44 @@ with tab2:
                     guardar_seguir = btn_col1.form_submit_button("💾 Guardar y Seguir")
                     guardar_salir = btn_col2.form_submit_button("🚪 Guardar y Salir")
 
-                # LÓGICA DE ACTUALIZACIÓN
+               # AL FINAL, EN EL GUARDADO:
                 if guardar_seguir or guardar_salir:
                     try:
-                        url_final_foto = datos["Image_Ref"].values[0] # Por defecto, la que ya hay
+                        # 1. Mantener la URL vieja por defecto
+                        url_final_foto = datos["Image_Ref"].values[0]
                         
-                        # Si el usuario ha subido una foto nueva, la procesamos
-                        if nueva_foto_archivo is not None:
+                        # 2. Si el interruptor está activo Y hay un archivo, subimos a Cloudinary
+                        if cambiar and nueva_foto_archivo is not None:
                             with st.spinner("Subiendo nueva imagen..."):
-                                res_subida = cloudinary.uploader.upload(nueva_foto_archivo.getvalue(), folder="inventario")
+                                # Opcional: usamos el ID como nombre de archivo en Cloudinary
+                                res_subida = cloudinary.uploader.upload(
+                                    nueva_foto_archivo.getvalue(), 
+                                    folder="inventario",
+                                    public_id=f"foto_{nuevo_id}" # Ordena tus fotos por ID
+                                )
                                 url_final_foto = res_subida['secure_url']
 
-                        # Actualizamos el DataFrame con TODOS los campos
+                        # 3. Actualizamos el DataFrame (incluyendo la foto)
                         df_ver.loc[item_index, "ID"] = nuevo_id
                         df_ver.loc[item_index, "Categoria"] = e_cat
+                        df_ver.loc[item_index, "Fecha"] = e_fecha
                         df_ver.loc[item_index, "Talla"] = e_talla
                         df_ver.loc[item_index, "Color"] = e_color
                         df_ver.loc[item_index, "Compra"] = e_compra
                         df_ver.loc[item_index, "Venta"] = e_venta
                         df_ver.loc[item_index, "Stock"] = e_stock
-                        df_ver.loc[item_index, "Fecha"] = e_fecha
-                        df_ver.loc[item_index, "Image_Ref"] = url_final_foto # <--- Aquí se actualiza la foto
+                        df_ver.loc[item_index, "Image_Ref"] = url_final_foto
                         
                         conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_ver)
-                        st.success("✅ ¡Registro e imagen actualizados!")
+                        st.success("✅ Cambios e imagen actualizados")
                         
-                        # Manejo de sesión igual que antes
                         if guardar_salir:
                             st.session_state.prenda_seleccionada = "-- Elige un ID --"
                         else:
                             st.session_state.prenda_seleccionada = nuevo_id
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error al actualizar: {e}")
+                        st.error(f"Error: {e}")
 
                 # BOTÓN ELIMINAR
                 if st.button("🗑️ ELIMINAR PRENDA PERMANENTEMENTE", type="primary", use_container_width=True):
