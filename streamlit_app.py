@@ -221,42 +221,46 @@ with tab2:
             st.rerun()
         
         
-  # --- SECCIÓN VISUAL: DISTRIBUCIÓN DEL GASTO ---
+          # 3. SECCIÓN VISUAL: GRÁFICO Y TABLA RESUMEN CON TOTAL
         st.divider()
-        st.subheader("📊 Distribución de la Inversión")
-
-        # Calculamos el gasto por fila y luego agrupamos por categoría
-        df_ver["Gasto_Total"] = df_ver["Compra"] * df_ver["Stock"]
-        df_gastos = df_ver.groupby("Categoria")["Gasto_Total"].sum().reset_index()
-
-        # Creamos el gráfico de "quesito"
-        import plotly.express as px
+        st.subheader("📊 Análisis de Inversión por Categoría")
         
-        fig = px.pie(
-            df_gastos, 
-            values='Gasto_Total', 
-            names='Categoria',
-            hole=0.4, # Lo convierte en un gráfico de "donut" que es más moderno
-            color_discrete_sequence=px.colors.qualitative.Pastel
-        )
+        # Agrupamos por categoría y sumamos el gasto
+        df_gastos = df_ver.groupby("Categoria")["Total_Invertido"].sum().reset_index()
+        
+        # --- CÁLCULO DE LA FILA TOTAL ---
+        total_suma = df_gastos["Total_Invertido"].sum()
+        fila_total = pd.DataFrame([{"Categoria": "TOTAL INVERTIDO EN ALMACÉN", "Total_Invertido": total_suma}])
+        
+        # Unimos la tabla de categorías con la fila del total
+        df_resumen_final = pd.concat([df_gastos.sort_values(by="Total_Invertido", ascending=False), fila_total], ignore_index=True)
 
-        # Configuramos para que muestre el valor en euros y el porcentaje
-        fig.update_traces(
-            textinfo='percent+label',
-            hovertemplate="Categoría: %{label}<br>Inversión: %{value:.2f} €<br>Porcentaje: %{percent}"
-        )
+        col_graf, col_tabla = st.columns([1.2, 1]) # El gráfico un poco más ancho que la tabla
 
-        st.plotly_chart(fig, use_container_width=True)
+        with col_graf:
+            import plotly.express as px
+            fig = px.pie(
+                df_gastos, 
+                values='Total_Invertido', 
+                names='Categoria',
+                hole=0.5,
+                color_discrete_sequence=px.colors.qualitative.Pastel
+            )
+            fig.update_traces(textinfo='percent', hovertemplate="%{label}<br>%{value:.2f} €")
+            st.plotly_chart(fig, use_container_width=True)
 
-        # Una pequeña tabla resumen al lado o debajo
-        st.write("💰 **Resumen de inversión por tipo:**")
-        st.dataframe(
-            df_gastos.sort_values(by="Gasto_Total", ascending=False),
-            column_config={
-                "Gasto_Total": st.column_config.NumberColumn("Inversión Total", format="%.2f €")
-            },
-            hide_index=True
-        )
+        with col_tabla:
+            st.write("💰 **Desglose de gastos:**")
+            st.dataframe(
+                df_resumen_final,
+                column_config={
+                    "Categoria": st.column_config.TextColumn("Categoría / Concepto"),
+                    "Total_Invertido": st.column_config.NumberColumn("Inversión", format="%.2f €")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+
 
         # --- Cálculo rápido de inversión ---
         total_inv = (df_ver["Compra"] * df_ver["Stock"]).sum()
