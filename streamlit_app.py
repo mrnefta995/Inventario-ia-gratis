@@ -180,13 +180,47 @@ with tab2:
         st.info("El inventario está vacío. Registra tu primera prenda.")
         st.info("Aún no hay prendas registradas.")
 
-    # Botón para descargar el inventario en formato CSV
-    csv = df_ver.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Descargar Inventario (CSV)",
-        data=csv,
-        file_name=f"inventario_{datetime.now().strftime('%d_%m_%Y')}.csv",
-        mime="text/csv",
-    )
+        st.divider()
 
+        # 2. SELECTOR PARA EDITAR O BORRAR
+        st.subheader("🛠️ Acciones sobre Producto")
+        id_seleccionado = st.selectbox("Selecciona un ID para gestionar:", ["-- Seleccionar --"] + df_ver["ID"].tolist())
+
+        if id_seleccionado != "-- Seleccionar --":
+            # Extraemos los datos actuales de ese producto
+            item_index = df_ver.index[df_ver['ID'] == id_seleccionado].tolist()[0]
+            datos_item = df_ver.iloc[item_index]
+
+            col_img, col_form = st.columns([1, 2])
+
+            with col_img:
+                st.image(datos_item["Image_Ref"], caption=f"ID: {id_seleccionado}", width=200)
+
+            with col_form:
+                with st.expander(f"Editar / Borrar {id_seleccionado}", expanded=True):
+                    # Campos de edición
+                    new_stock = st.number_input("Actualizar Stock", value=int(datos_item["Stock"]), min_value=0)
+                    new_venta = st.number_input("Actualizar Precio Venta (€)", value=float(datos_item["Venta"]), step=0.01)
+                    
+                    col_btn1, col_btn2 = st.columns(2)
+                    
+                    # BOTÓN ACTUALIZAR (Update)
+                    if col_btn1.button("💾 Guardar Cambios"):
+                        df_ver.at[item_index, "Stock"] = new_stock
+                        df_ver.at[item_index, "Venta"] = new_venta
+                        conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_ver)
+                        st.success("¡Datos actualizados!")
+                        st.rerun()
+
+                    # BOTÓN BORRAR (Delete)
+                    if col_btn2.button("🗑️ Eliminar Producto", type="primary"):
+                        df_nuevo = df_ver.drop(item_index)
+                        conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_nuevo)
+                        st.warning(f"Producto {id_seleccionado} eliminado.")
+                        st.rerun()
+
+        # 3. BOTÓN DE DESCARGA (Exportar)
+        st.divider()
+        csv = df_ver.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Descargar Inventario completo (CSV)", data=csv, file_name="inventario_real.csv", mime="text/csv")
 
