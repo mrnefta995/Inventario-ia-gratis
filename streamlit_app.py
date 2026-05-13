@@ -128,7 +128,6 @@ with tab1:
 
 # --- TAB 2: INVENTARIO (REESTRUCTURADO) ---
 with tab2:
-    with tab2:
     # --- 1. DATOS Y FILTRADO (Necesario al inicio para evitar errores de variables) ---
     df_ver = df_inventario.copy()
     
