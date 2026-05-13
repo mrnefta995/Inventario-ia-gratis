@@ -164,7 +164,7 @@ with tab2:
         st.subheader("🛠️ Editor Maestro de Producto")
         id_seleccionado = st.selectbox("Selecciona el ID que deseas modificar:", ["-- Seleccionar --"] + df_ver["ID"].tolist())
 
-        if seleccion != "-- Elige una prenda --":
+        if seleccion != "-- Seleccionar --":
             # 1. Identificar la prenda
             id_original = seleccion.split(" - ")[0] # Guardamos el ID de referencia
             item_index = df_ver.index[df_ver['ID'].astype(str) == id_original].tolist()
