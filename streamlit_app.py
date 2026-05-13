@@ -71,11 +71,10 @@ with tab1:
         archivo_foto = st.file_uploader("Sube la foto de la prenda", type=["jpg", "png", "jpeg"])
         
         if archivo_foto:
-            # 1. Inicializamos variables con valores vacíos para evitar el NameError
-            c_ia = ""
-            cl_ia = ""
-
+            # 1. Aseguramos que existan variables de respaldo
             if 'datos_ia' not in st.session_state:
+                st.session_state.datos_ia = {"cat": "", "color": ""}
+                
                 with st.spinner("🤖 IA Analizando..."):
                     try:
                         img_pil = Image.open(archivo_foto)
@@ -84,49 +83,68 @@ with tab1:
                         resp = model.generate_content([prompt, img_pil])
                         
                         p = resp.text.split("/")
-                        c_ia = p[0].strip()
-                        cl_ia = p[1].strip()
-                        st.session_state.datos_ia = {"cat": c_ia, "color": cl_ia}
+                        st.session_state.datos_ia = {"cat": p[0].strip(), "color": p[1].strip()}
+                        st.toast("IA completada", icon="✅")
                     except Exception as e:
-                        st.warning("⚠️ IA no disponible temporalmente. Introduce los datos a mano.")
-                        st.session_state.datos_ia = {"cat": "", "color": ""}
-            
-            # 2. Recuperamos los datos del session_state (aseguramos que existan)
-            c_ia = st.session_state.datos_ia.get("cat", "")
-            cl_ia = st.session_state.datos_ia.get("color", "")
+                        # Si falla la IA, no hacemos nada, dejamos los campos vacíos
+                        st.warning("⚠️ IA saturada. Por favor, rellena los datos manualmente.")
 
-            # 3. Lógica de búsqueda de coincidencias (Blindada contra errores)
-            match = pd.DataFrame() # Creamos un match vacío por defecto
+            # 2. Recuperamos lo que haya en el estado (venga de la IA o esté vacío)
+            d_ia = st.session_state.datos_ia
+            
+            # 3. Buscamos coincidencias para sugerir precios/tallas
             id_f, t_f, cp_f, vt_f = str(nuevo_id_sug), "", 0.0, 0.0
-
-            # Solo buscamos si la IA nos dio algún dato
-            if c_ia and cl_ia:
+            if d_ia["cat"] and d_ia["color"]:
                 match = df_inventario[
-                    (df_inventario["Categoria"].str.lower() == c_ia.lower()) & 
-                    (df_inventario["Color"].str.lower() == cl_ia.lower())
+                    (df_inventario["Categoria"].str.lower() == d_ia["cat"].lower()) & 
+                    (df_inventario["Color"].str.lower() == d_ia["color"].lower())
                 ]
-            
-            if not match.empty:
-                art = match.iloc[0]
-                id_f, t_f, cp_f, vt_f = str(art['ID']), str(art['Talla']), float(art['Compra']), float(art['Venta'])
-                st.info(f"🔍 Se encontró un artículo similar (ID: {id_f}).")
+                if not match.empty:
+                    art = match.iloc[0]
+                    id_f, t_f, cp_f, vt_f = str(art['ID']), str(art['Talla']), float(art['Compra']), float(art['Venta'])
 
-            # 4. Formulario de registro
-            with st.form("form_ia_final"):
+            # --- FORMULARIO DE REGISTRO (ESTE ES EL QUE DEBE GUARDAR) ---
+            with st.form("form_final_guardado"):
                 f_id = st.text_input("ID Artículo", value=id_f)
-                col1, col2 = st.columns(2)
-                f_cat = col1.text_input("Categoría", value=c_ia)
-                f_col = col2.text_input("Color", value=cl_ia)
-                f_talla = col1.text_input("Talla", value=t_f)
-                f_stock = col2.number_input("Cantidad", min_value=1)
-                f_compra = col1.number_input("Compra (€)", value=cp_f)
-                f_venta = col2.number_input("Venta (€)", value=vt_f)
+                c1, c2 = st.columns(2)
+                # IMPORTANTE: Permitimos que el usuario edite lo que la IA puso o rellene si está vacío
+                f_cat = c1.text_input("Categoría", value=d_ia["cat"])
+                f_col = c2.text_input("Color", value=d_ia["color"])
                 
-                if st.form_submit_button("🚀 GUARDAR REGISTRO"):
-                    # ... (Tu lógica de guardado en Cloudinary y GSheets)
-                    st.success("¡Registro completado!")
-                    if 'datos_ia' in st.session_state: del st.session_state.datos_ia
-                    st.rerun()
+                f_talla = c1.text_input("Talla", value=t_f)
+                f_stock = c2.number_input("Cantidad", min_value=1, value=1)
+                f_compra = c1.number_input("Precio Compra (€)", value=cp_f)
+                f_venta = c2.number_input("Precio Venta (€)", value=vt_f)
+                
+                # Botón de envío
+                enviar = st.form_submit_button("🚀 GUARDAR EN INVENTARIO")
+
+                if enviar:
+                    if not f_cat or not f_col:
+                        st.error("Faltan Categoría o Color para guardar.")
+                    else:
+                        with st.spinner("Subiendo datos..."):
+                            # Subida a Cloudinary
+                            res_c = cloudinary.uploader.upload(archivo_foto.getvalue(), folder="inventario", public_id=f"foto_{f_id}")
+                            
+                            # Crear nueva fila
+                            nueva = pd.DataFrame([{
+                                "ID": f_id, "Categoria": f_cat, "Fecha": datetime.now().strftime('%Y-%m-%d'), 
+                                "Talla": f_talla, "Color": f_col, "Compra": f_compra, 
+                                "Venta": f_venta, "Stock": f_stock, "Image_Ref": res_c['secure_url']
+                            }])
+                            
+                            # Actualizar DataFrame (eliminando ID duplicado si existe)
+                            df_f = pd.concat([df_inventario[df_inventario["ID"].astype(str) != str(f_id)], nueva], ignore_index=True)
+                            
+                            # Guardar en Google Sheets
+                            conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_f)
+                            
+                            # LIMPIEZA TOTAL PARA EVITAR REINICIOS BUCLE
+                            if 'datos_ia' in st.session_state:
+                                del st.session_state.datos_ia
+                            st.success(f"✅ ¡ID {f_id} guardado con éxito!")
+                            st.rerun()
 
     
     elif st.session_state.modo_registro == "manual":
