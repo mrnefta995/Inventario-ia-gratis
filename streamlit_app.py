@@ -174,8 +174,8 @@ with tab2:
                     st.warning("Este ID no tiene una imagen válida.")
             else:
                 st.error("ID no encontrado en el sistema.")
-      else:
-          st.info("Aún no hay prendas registradas.")
+        else:
+            st.info("Aún no hay prendas registradas.")
         # Botón opcional para refrescar si haces cambios manuales en el Sheets
         if st.button("🔄 Actualizar lista"):
             st.rerun()
