@@ -103,22 +103,30 @@ with tab1:
             parecido = df_inventario[(df_inventario["Categoria"].str.lower() == cat_ia.lower()) & 
                                      (df_inventario["Color"].str.lower() != col_ia.lower())]
 
-            # Inicialización de variables
+
+            # - DEFINICIÓN SEGURA DE VARIABLES (CORRECCIÓN VALUERROR) ---
             id_sug = int(nuevo_id)
             talla_sug, compra_sug, venta_sug = "", 0.0, 0.0
             art_previa = None
 
+            # Primero verificamos si hay coincidencia EXACTA
             if not exacto.empty:
                 art_previa = exacto.iloc[0]
-                id_sug = int(art_previa['ID'])
-                talla_sug = art_previa['Talla']
+                id_sug = int(art_previa['ID']) # Aquí es seguro porque exacto NO está vacío
+                talla_sug = str(art_previa['Talla'])
                 compra_sug = float(art_previa['Compra'])
                 venta_sug = float(art_previa['Venta'])
+            
+            # Si no hay exacta, miramos si hay PARECIDO (otro color)
             elif not parecido.empty:
                 art_previa = parecido.iloc[0]
-                talla_sug = art_previa['Talla']
+                # NO cambiamos el id_sug (dejamos el nuevo_id), pero copiamos atributos
+                talla_sug = str(art_previa['Talla'])
                 compra_sug = float(art_previa['Compra'])
                 venta_sug = float(art_previa['Venta'])
+            
+            # Si ambos están vacíos, art_previa se queda como None y 
+            # las variables conservan sus valores iniciales (nuevo_id, "", 0.0)
 
             # 3. PANEL VISUAL ORGANIZADO (Ahora cerrado por defecto)
             if art_previa is not None:
