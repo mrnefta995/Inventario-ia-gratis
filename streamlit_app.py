@@ -71,96 +71,128 @@ with tab1:
     if st.session_state.modo_registro == "imagen":
         st.subheader("Registro Inteligente e Histórico")
         
-        if st.button("⬅️ Volver"):
+        if st.button("⬅️ Volver a selección"):
             st.session_state.modo_registro = None
             if 'datos_ia' in st.session_state: del st.session_state.datos_ia
             st.rerun()
 
-        archivo_foto = st.file_uploader("Sube la foto", type=["jpg", "png", "jpeg"])
+        archivo_foto = st.file_uploader("Sube la foto de la prenda", type=["jpg", "png", "jpeg"])
 
         if archivo_foto is not None:
-            # 1. ANÁLISIS DE IA Y LIMPIEZA DE TEXTO
+            # 1. ANÁLISIS DE IA Y LIMPIEZA DE ETIQUETAS
             if 'datos_ia' not in st.session_state:
                 with st.spinner("🤖 IA Analizando prenda..."):
                     imagen_pil = Image.open(archivo_foto)
-                    # Prompt estricto
-                    prompt = "Analiza la prenda. Responde ESTRICTAMENTE en este formato: CATEGORIA / COLOR. No añadidas nada más."
+                    # Prompt estricto para evitar textos explicativos de la IA
+                    prompt = """
+                    Analiza la prenda. Responde ESTRICTAMENTE con este formato:
+                    CATEGORIA / COLOR
+                    Ejemplo: Camiseta de manga corta / Negro con logo naranja
+                    No añadas introducciones, ni asteriscos, ni etiquetas como 'Categoría:'.
+                    """
                     respuesta = model.generate_content([prompt, imagen_pil])
                     texto_ia = respuesta.text
                     
                     try:
-                        # Separamos y limpiamos etiquetas/asteriscos
                         partes = texto_ia.split("/")
-                        cat_limpia = partes[0].replace("*", "").replace("CATEGORIA:", "").replace("Categoría:", "").strip()
-                        col_limpio = partes[1].replace("*", "").replace("COLOR:", "").replace("Color:", "").strip()
-                        
-                        # Guardamos en el estado para que 'cat_ia' y 'col_ia' existan
-                        st.session_state.datos_ia = {"cat": cat_limpia, "color": col_limpio}
+                        # Limpieza profunda de cualquier residuo de texto
+                        cat_l = partes[0].replace("*", "").replace("CATEGORIA:", "").replace("Categoría:", "").replace("Análisis:", "").strip()
+                        col_l = partes[1].replace("*", "").replace("COLOR:", "").replace("Color:", "").strip()
+                        st.session_state.datos_ia = {"cat": cat_l, "color": col_l}
                     except:
-                        st.session_state.datos_ia = {"cat": "Desconocido", "color": "Desconocido"}
+                        st.session_state.datos_ia = {"cat": "Revisar Categoría", "color": "Revisar Color"}
 
-            # 2. ASIGNACIÓN DE VARIABLES (Esto evita el NameError)
+            # Extraemos los valores limpios del estado
             cat_ia = st.session_state.datos_ia["cat"]
             col_ia = st.session_state.datos_ia["color"]
 
-            # 3. BÚSQUEDA DE COINCIDENCIAS (Ahora las variables ya existen)
+            # 2. BÚSQUEDA DE COINCIDENCIAS (Evita el NameError)
             exacto = df_inventario[(df_inventario["Categoria"].str.lower() == cat_ia.lower()) & 
                                    (df_inventario["Color"].str.lower() == col_ia.lower())]
             
             parecido = df_inventario[(df_inventario["Categoria"].str.lower() == cat_ia.lower()) & 
                                      (df_inventario["Color"].str.lower() != col_ia.lower())]
 
-            # 4. PANEL DE COMPARACIÓN
-            if not exacto.empty or not parecido.empty:
-                art = exacto.iloc[0] if not exacto.empty else parecido.iloc[0]
-                tipo_msj = "✅ COINCIDENCIA EXACTA" if not exacto.empty else "💡 ARTÍCULO SIMILAR (OTRO COLOR)"
-                
-                with st.expander(f"{tipo_msj}: {art['Categoria']} (ID: {art['ID']})", expanded=True):
-                    col_info, col_img_btn = st.columns([2, 1])
-                    with col_info:
-                        st.write(f"**Color Almacenado:** {art['Color']}")
-                        st.write(f"**Talla:** {art['Talla']} | **P. Venta:** {art['Venta']}€")
-                    with col_img_btn:
-                        if st.button("👁️ Ver foto actual", key="ver_foto_inv"):
-                            st.image(art['Image_Ref'], width=150)
+            # 3. DEFINICIÓN DE VARIABLES DE SUGERENCIA (Evita el ValueError)
+            id_sug = int(nuevo_id)
+            talla_sug, compra_sug, venta_sug = "", 0.0, 0.0
+            art_previa = None
 
-            # 5. DETERMINAR SUGERENCIAS PARA EL FORMULARIO
-            id_sug = int(art['ID']) if not exacto.empty else int(nuevo_id)
-            talla_sug = art['Talla'] if (not exacto.empty or not parecido.empty) else ""
-            compra_sug = float(art['Compra']) if (not exacto.empty or not parecido.empty) else 0.0
-            venta_sug = float(art['Venta']) if (not exacto.empty or not parecido.empty) else 0.0
+            if not exacto.empty:
+                art_previa = exacto.iloc[0]
+                id_sug = int(art_previa['ID'])
+                talla_sug = art_previa['Talla']
+                compra_sug = float(art_previa['Compra'])
+                venta_sug = float(art_previa['Venta'])
+            elif not parecido.empty:
+                art_previa = parecido.iloc[0]
+                # En parecido NO sugerimos el ID (queremos uno nuevo), pero copiamos atributos
+                talla_sug = art_previa['Talla']
+                compra_sug = float(art_previa['Compra'])
+                venta_sug = float(art_previa['Venta'])
 
-            # 6. FORMULARIO FINAL
-            with st.form("form_ia_limpio"):
-                st.image(Image.open(archivo_foto), width=200)
-                c_id, c_f = st.columns(2)
-                with c_id: e_id = st.number_input("ID Artículo", value=id_sug, step=1)
-                with c_f: e_fecha = st.date_input("Fecha", datetime.now())
+            # 4. PANEL VISUAL DE COMPARACIÓN
+            if art_previa is not None:
+                tipo_msj = "✅ COINCIDENCIA EXACTA" if not exacto.empty else "💡 PRENDA SIMILAR (OTRO COLOR)"
+                with st.expander(f"{tipo_msj}: {art_previa['Categoria']} (ID: {art_previa['ID']})", expanded=True):
+                    c_txt, c_img = st.columns([2, 1])
+                    with c_txt:
+                        st.write(f"**En Almacén:** {art_previa['Color']} | Talla {art_previa['Talla']}")
+                        st.write(f"**Precio:** {art_previa['Venta']}€ | **Stock actual:** {art_previa['Stock']}")
+                    with c_img:
+                        if st.button("👁️ Ver foto actual", key="btn_ver_previa"):
+                            st.image(art_previa['Image_Ref'], width=150)
+
+            # 5. FORMULARIO DE REGISTRO / ACTUALIZACIÓN
+            with st.form("form_ia_final_v3"):
+                st.image(Image.open(archivo_foto), width=220, caption="Nueva Imagen")
+                col_id_f, col_fecha_f = st.columns(2)
+                with col_id_f:
+                    e_id = st.number_input("ID del Artículo", value=id_sug, step=1)
+                with col_fecha_f:
+                    e_fecha = st.date_input("Fecha de Registro", datetime.now())
 
                 c1, c2 = st.columns(2)
                 with c1:
-                    e_cat = st.text_input("Categoría", value=cat_ia) # Sale limpia sin etiquetas
+                    e_cat = st.text_input("Categoría", value=cat_ia)
                     e_talla = st.text_input("Talla", value=talla_sug)
                 with c2:
-                    e_color = st.text_input("Color", value=col_ia) # Sale limpio
-                    e_stock = st.number_input("Cantidad", min_value=1)
+                    e_color = st.text_input("Color", value=col_ia)
+                    e_stock = st.number_input("Cantidad a registrar", min_value=1, step=1)
 
                 c3, c4 = st.columns(2)
-                with c3: e_compra = st.number_input("Precio Compra (€)", value=compra_sug)
-                with c4: e_venta = st.number_input("Precio Venta (€)", value=venta_sug)
+                with c3: e_compra = st.number_input("Precio Compra (€)", value=compra_sug, step=0.01)
+                with c4: e_venta = st.number_input("Precio Venta (€)", value=venta_sug, step=0.01)
 
-                if st.form_submit_button("🚀 FINALIZAR REGISTRO", use_container_width=True):
-                    # Lógica de guardado que ya tienes...
-                    with st.spinner("Guardando..."):
-                        res_sub = cloudinary.uploader.upload(archivo_foto.getvalue(), folder="inventario", public_id=f"foto_{e_id}")
-                        nueva_fila = pd.DataFrame([{"ID": e_id, "Categoria": e_cat, "Fecha": e_fecha.strftime('%Y-%m-%d'), "Talla": e_talla, "Color": e_color, "Compra": e_compra, "Venta": e_venta, "Stock": e_stock, "Image_Ref": res_sub['secure_url']}])
+                if st.form_submit_button("🚀 FINALIZAR Y GUARDAR", use_container_width=True):
+                    with st.spinner("Guardando en la base de datos..."):
+                        # Subida a Cloudinary
+                        res_cloudinary = cloudinary.uploader.upload(
+                            archivo_foto.getvalue(), 
+                            folder="inventario", 
+                            public_id=f"foto_{e_id}"
+                        )
+                        
+                        # Preparar nueva fila
+                        nueva_fila = pd.DataFrame([{
+                            "ID": e_id, "Categoria": e_cat, "Fecha": e_fecha.strftime('%Y-%m-%d'),
+                            "Talla": e_talla, "Color": e_color, "Compra": e_compra,
+                            "Venta": e_venta, "Stock": e_stock, "Image_Ref": res_cloudinary['secure_url']
+                        }])
+                        
+                        # Actualizar DataFrame (reemplazando si el ID ya existe)
                         df_final = pd.concat([df_inventario[df_inventario["ID"] != e_id], nueva_fila], ignore_index=True)
+                        
+                        # Guardar en Google Sheets
                         conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
+                        
+                        # Limpiar y resetear
                         del st.session_state.datos_ia
                         st.session_state.modo_registro = None
+                        st.success(f"✅ Artículo {e_id} procesado correctamente.")
                         st.rerun()
         else:
-            st.info("Esperando imagen...")
+            st.info("Sube una foto para que la IA pueda identificar la prenda y sugerirte los datos.")
 
     # --- OPERATIVA B: REGISTRO MANUAL ---
     elif st.session_state.modo_registro == "manual":
