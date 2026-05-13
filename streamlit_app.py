@@ -7,6 +7,7 @@ from streamlit_gsheets import GSheetsConnection
 import cloudinary
 import cloudinary.uploader
 import plotly.express as px
+import time
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Almacén IA Pro", layout="wide")
@@ -68,21 +69,30 @@ with tab1:
 
     if st.session_state.modo_registro == "imagen":
         archivo_foto = st.file_uploader("Sube la foto de la prenda", type=["jpg", "png", "jpeg"])
+
+        # ... dentro del bloque donde llamas a la IA ...
         if archivo_foto:
             if 'datos_ia' not in st.session_state:
                 with st.spinner("🤖 IA Analizando..."):
-                    img_pil = Image.open(archivo_foto)
-                    prompt = "Analiza la prenda. Responde ESTRICTAMENTE: CATEGORIA / COLOR. Sin etiquetas ni asteriscos."
-                    resp = model.generate_content([prompt, img_pil])
                     try:
+                        img_pil = Image.open(archivo_foto)
+                        prompt = "Analiza la prenda. Responde ESTRICTAMENTE: CATEGORIA / COLOR. Sin etiquetas ni asteriscos."
+                        resp = model.generate_content([prompt, img_pil])
+                        
+                        # Si llegamos aquí, la petición fue exitosa
                         p = resp.text.split("/")
-                        cat_l = p[0].strip(); col_l = p[1].strip()
+                        cat_l = p[0].strip()
+                        col_l = p[1].strip()
                         st.session_state.datos_ia = {"cat": cat_l, "color": col_l}
-                    except:
-                        st.session_state.datos_ia = {"cat": "Revisar", "color": "Revisar"}
-
-            c_ia = st.session_state.datos_ia["cat"]
-            cl_ia = st.session_state.datos_ia["color"]
+                        
+                    except Exception as e:
+                        if "429" in str(e) or "ResourceExhausted" in str(e):
+                            st.error("⚠️ Cuota de IA agotada. Por favor, espera 60 segundos y vuelve a intentarlo.")
+                            # Opcional: podrías poner un botón para reintentar manual
+                        else:
+                            st.error(f"Error inesperado: {e}")
+                        # Definimos valores por defecto para que el formulario no de error
+                        st.session_state.datos_ia = {"cat": "Error de cuota", "color": "Reintentar en 1 min"}
             
             # Buscar coincidencias para pre-rellenar
             match = df_inventario[(df_inventario["Categoria"].str.lower() == c_ia.lower()) & (df_inventario["Color"].str.lower() == cl_ia.lower())]
