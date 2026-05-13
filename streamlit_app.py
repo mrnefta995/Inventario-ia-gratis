@@ -67,7 +67,6 @@ with tab1:
         nuevo_id = 1
 
 
-
     # --- OPERATIVA A: REGISTRO POR IMAGEN ---
     if st.session_state.modo_registro == "imagen":
         st.subheader("Registro Inteligente e Histórico")
@@ -98,69 +97,54 @@ with tab1:
             col_ia = st.session_state.datos_ia["color"]
 
             # 2. BÚSQUEDA DE COINCIDENCIAS
-            exacto = df_inventario[(df_inventario["Categoria"].str.lower() == cat_ia.lower()) & 
-                                   (df_inventario["Color"].str.lower() == col_ia.lower())]
+            exacto = df_inventario[(df_inventario["Categoria"].astype(str).str.lower() == cat_ia.lower()) & 
+                                   (df_inventario["Color"].astype(str).str.lower() == col_ia.lower())]
             
-            parecido = df_inventario[(df_inventario["Categoria"].str.lower() == cat_ia.lower()) & 
-                                     (df_inventario["Color"].str.lower() != col_ia.lower())]
+            parecido = df_inventario[(df_inventario["Categoria"].astype(str).str.lower() == cat_ia.lower()) & 
+                                     (df_inventario["Color"].astype(str).str.lower() != col_ia.lower())]
 
-            # --- 3. ASIGNACIÓN SEGURA (SOLUCIÓN DEFINITIVA AL VALUEERROR) ---
-            # 1. Definimos valores por defecto ultra-seguros
-            id_sug = int(nuevo_id)
-            talla_sug = ""
-            compra_sug = 0.0
-            venta_sug = 0.0
+            # 3. ASIGNACIÓN SEGURA (DATOS PRE-ESCRITOS)
+            id_sug = str(nuevo_id) # Ahora es String para admitir letras
+            talla_sug, compra_sug, venta_sug = "", 0.0, 0.0
             art_previa = None
 
-            # 2. Intentamos capturar la fila de datos si existe
             if not exacto.empty:
                 art_previa = exacto.iloc[0]
+                id_sug = str(art_previa['ID'])
+                talla_sug = str(art_previa['Talla'])
+                compra_sug = float(pd.to_numeric(art_previa['Compra'], errors='coerce')) or 0.0
+                venta_sug = float(pd.to_numeric(art_previa['Venta'], errors='coerce')) or 0.0
             elif not parecido.empty:
                 art_previa = parecido.iloc[0]
+                talla_sug = str(art_previa['Talla'])
+                compra_sug = float(pd.to_numeric(art_previa['Compra'], errors='coerce')) or 0.0
+                venta_sug = float(pd.to_numeric(art_previa['Venta'], errors='coerce')) or 0.0
 
-            # 3. Solo si art_previa existe y no es nula, extraemos sus valores
-            if art_previa is not None:
-                try:
-                    # Usamos pd.to_numeric para evitar errores de formato en el ID
-                    if not exacto.empty:
-                        id_sug = int(pd.to_numeric(art_previa['ID']))
-                    
-                    # Extraemos el resto de valores asegurando el tipo de dato
-                    talla_sug = str(art_previa['Talla']) if pd.notna(art_previa['Talla']) else ""
-                    compra_sug = float(pd.to_numeric(art_previa['Compra'], errors='coerce')) or 0.0
-                    venta_sug = float(pd.to_numeric(art_previa['Venta'], errors='coerce')) or 0.0
-                except Exception as e:
-                    # Si algo falla extrayendo datos, mantenemos los valores por defecto
-                    pass 
-
-            # A partir de aquí, el código sigue con el Panel Visual y el Formulario...
-          
-            # 4. PANEL VISUAL (Cerrado por defecto)
+            # 4. PANEL VISUAL
             if art_previa is not None:
                 tipo_msj = "✅ COINCIDENCIA EXACTA" if not exacto.empty else "💡 PRENDA SIMILAR (OTRO COLOR)"
                 with st.expander(f"{tipo_msj}: {art_previa['Categoria']} (ID: {art_previa['ID']})", expanded=False):
-                    st.markdown("### 📋 Información en Inventario")
                     c1, c2, c3 = st.columns(3)
                     with c1:
-                        st.markdown(f"**🎨 Color:**\n{art_previa['Color']}")
-                        st.markdown(f"**📏 Talla:**\n{art_previa['Talla']}")
+                        st.markdown(f"**🎨 Color:** {art_previa['Color']}\n\n**📏 Talla:** {art_previa['Talla']}")
                     with c2:
-                        st.markdown(f"**💰 Compra:**\n{art_previa['Compra']}€")
-                        st.markdown(f"**🏷️ Venta:**\n{art_previa['Venta']}€")
+                        st.markdown(f"**💰 Compra:** {art_previa['Compra']}€\n\n**🏷️ Venta:** {art_previa['Venta']}€")
                     with c3:
-                        st.markdown(f"**📦 Stock:**\n{art_previa['Stock']} uds")
-                        st.markdown(f"**📅 Registro:**\n{art_previa['Fecha']}")
-                    
-                    st.divider()
-                    if st.button("👁️ Visualizar Imagen Almacenada", key="btn_ver_previa"):
-                        st.image(art_previa['Image_Ref'], width=250, caption=f"Foto del ID {art_previa['ID']}")
+                        st.markdown(f"**📦 Stock:** {art_previa['Stock']}\n\n**📅 Fecha:** {art_previa['Fecha']}")
+                    if st.button("👁️ Ver foto almacenada", key="btn_ver_previa"):
+                        st.image(art_previa['Image_Ref'], width=250)
 
-            # 5. FORMULARIO
-            with st.form("form_ia_final_v5"):
-                st.image(Image.open(archivo_foto), width=200)
+            # 5. FORMULARIO CON ID ALFANUMÉRICO
+            with st.form("form_ia_v_final"):
+                st.write("### 📝 Datos del Registro")
+                st.image(Image.open(archivo_foto), width=180)
+                
                 c_id, c_fecha = st.columns(2)
-                with c_id: e_id = st.number_input("ID Artículo", value=id_sug, step=1)
-                with c_fecha: e_fecha = st.date_input("Fecha", datetime.now())
+                with c_id: 
+                    # CAMBIO CLAVE: text_input para admitir letras en el ID
+                    e_id = st.text_input("ID del Artículo (Letras y Números)", value=id_sug)
+                with c_fecha: 
+                    e_fecha = st.date_input("Fecha", datetime.now())
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -174,15 +158,21 @@ with tab1:
                 with col3: e_compra = st.number_input("Precio Compra (€)", value=compra_sug, format="%.2f")
                 with col4: e_venta = st.number_input("Precio Venta (€)", value=venta_sug, format="%.2f")
 
+                # Comprobar si el ID ya existe para avisar de sobreescritura
+                id_existe = any(df_inventario["ID"].astype(str) == str(e_id))
+                if id_existe:
+                    st.warning(f"⚠️ El ID '{e_id}' ya existe. Si guardas, se sobreescribirán los datos.")
+
                 if st.form_submit_button("🚀 GUARDAR REGISTRO", use_container_width=True):
-                    with st.spinner("Guardando..."):
+                    with st.spinner("Procesando..."):
                         res_cloudinary = cloudinary.uploader.upload(archivo_foto.getvalue(), folder="inventario", public_id=f"foto_{e_id}")
                         nueva_fila = pd.DataFrame([{
                             "ID": e_id, "Categoria": e_cat, "Fecha": e_fecha.strftime('%Y-%m-%d'),
                             "Talla": e_talla, "Color": e_color, "Compra": e_compra,
                             "Venta": e_venta, "Stock": e_stock, "Image_Ref": res_cloudinary['secure_url']
                         }])
-                        df_final = pd.concat([df_inventario[df_inventario["ID"] != e_id], nueva_fila], ignore_index=True)
+                        # Filtramos por ID (como string) para sobreescribir si coincide
+                        df_final = pd.concat([df_inventario[df_inventario["ID"].astype(str) != str(e_id)], nueva_fila], ignore_index=True)
                         conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
                         del st.session_state.datos_ia
                         st.session_state.modo_registro = None
@@ -193,22 +183,57 @@ with tab1:
     # --- OPERATIVA B: REGISTRO MANUAL ---
     elif st.session_state.modo_registro == "manual":
         st.subheader(f"Entrada Manual (Sugerido ID: {nuevo_id})")
-        with st.form("form_manual"):
-            e_id = st.number_input("ID del Artículo", value=int(nuevo_id), step=1)
-            e_fecha = st.date_input("Fecha", datetime.now())
-            e_cat = st.text_input("Categoría")
-            e_talla = st.text_input("Talla")
-            e_color = st.text_input("Color")
-            e_stock = st.number_input("Stock Inicial", min_value=1)
-            e_compra = st.number_input("Precio Compra (€)")
-            e_venta = st.number_input("Precio Venta (€)")
+        
+        if st.button("⬅️ Volver a selección"):
+            st.session_state.modo_registro = None
+            st.rerun()
 
-            if st.form_submit_button("💾 GUARDAR SIN FOTO", use_container_width=True):
-                nueva_fila = pd.DataFrame([{"ID": e_id, "Categoria": e_cat, "Fecha": e_fecha.strftime('%Y-%m-%d'), "Talla": e_talla, "Color": e_color, "Compra": e_compra, "Venta": e_venta, "Stock": e_stock, "Image_Ref": URL_SIN_IMAGEN}])
-                df_final = pd.concat([df_inventario[df_inventario["ID"] != e_id], nueva_fila], ignore_index=True)
-                conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
-                st.session_state.modo_registro = None
-                st.rerun()
+        with st.form("form_manual_v2"):
+            c_id_m, c_f_m = st.columns(2)
+            with c_id_m: 
+                # CAMBIO: text_input para permitir letras
+                e_id = st.text_input("ID del Artículo (Letras y Números)", value=str(nuevo_id))
+            with c_f_m: 
+                e_fecha = st.date_input("Fecha", datetime.now())
+
+            c1, c2 = st.columns(2)
+            with c1:
+                e_cat = st.text_input("Categoría")
+                e_talla = st.text_input("Talla")
+            with c2:
+                e_color = st.text_input("Color")
+                e_stock = st.number_input("Stock Inicial", min_value=1, step=1)
+
+            c3, c4 = st.columns(2)
+            with c3: e_compra = st.number_input("Precio Compra (€)", format="%.2f")
+            with c4: e_venta = st.number_input("Precio Venta (€)", format="%.2f")
+
+            # Comprobar si el ID ya existe en el inventario actual
+            id_existe_manual = any(df_inventario["ID"].astype(str) == str(e_id))
+            if id_existe_manual:
+                st.warning(f"⚠️ El ID '{e_id}' ya está en uso. Guardar sobreescribirá los datos previos.")
+
+            if st.form_submit_button("💾 GUARDAR REGISTRO MANUAL", use_container_width=True):
+                with st.spinner("Guardando..."):
+                    nueva_fila = pd.DataFrame([{
+                        "ID": e_id, 
+                        "Categoria": e_cat, 
+                        "Fecha": e_fecha.strftime('%Y-%m-%d'),
+                        "Talla": e_talla, 
+                        "Color": e_color, 
+                        "Compra": e_compra,
+                        "Venta": e_venta, 
+                        "Stock": e_stock, 
+                        "Image_Ref": URL_SIN_IMAGEN # Usamos la constante definida arriba
+                    }])
+                    
+                    # Filtramos para sobreescribir si el ID coincide (tratándolo como string)
+                    df_final = pd.concat([df_inventario[df_inventario["ID"].astype(str) != str(e_id)], nueva_fila], ignore_index=True)
+                    conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
+                    
+                    st.session_state.modo_registro = None
+                    st.success(f"✅ Artículo '{e_id}' guardado correctamente.")
+                    st.rerun()
 
 with tab2:
     st.subheader("📋 Control de Stock y Finanzas")
