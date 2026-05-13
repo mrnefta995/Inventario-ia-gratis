@@ -67,6 +67,7 @@ with tab1:
         nuevo_id = 1
 
 
+
     # --- OPERATIVA A: REGISTRO POR IMAGEN ---
     if st.session_state.modo_registro == "imagen":
         st.subheader("Registro Inteligente e Histórico")
@@ -81,7 +82,7 @@ with tab1:
         if archivo_foto is not None:
             # 1. ANÁLISIS DE IA
             if 'datos_ia' not in st.session_state:
-                with st.spinner("🤖 IA Analizando prenda..."):
+                with st.spinner("🤖 IA Analizando..."):
                     imagen_pil = Image.open(archivo_foto)
                     prompt = "Analiza la prenda. Responde ESTRICTAMENTE: CATEGORIA / COLOR. Sin etiquetas ni asteriscos."
                     respuesta = model.generate_content([prompt, imagen_pil])
@@ -103,80 +104,68 @@ with tab1:
             parecido = df_inventario[(df_inventario["Categoria"].str.lower() == cat_ia.lower()) & 
                                      (df_inventario["Color"].str.lower() != col_ia.lower())]
 
-
-            # - DEFINICIÓN SEGURA DE VARIABLES (CORRECCIÓN VALUERROR) ---
+            # --- 3. ASIGNACIÓN SEGURA (SOLUCIÓN AL VALUEERROR) ---
+            # Valores por defecto (Seguros)
             id_sug = int(nuevo_id)
-            talla_sug, compra_sug, venta_sug = "", 0.0, 0.0
+            talla_sug = ""
+            compra_sug = 0.0
+            venta_sug = 0.0
             art_previa = None
 
-            # Primero verificamos si hay coincidencia EXACTA
+            # Lógica jerárquica para extraer datos
             if not exacto.empty:
                 art_previa = exacto.iloc[0]
-                id_sug = int(art_previa['ID']) # Aquí es seguro porque exacto NO está vacío
+                id_sug = int(art_previa['ID']) # Prioridad: ID existente si es igual
                 talla_sug = str(art_previa['Talla'])
                 compra_sug = float(art_previa['Compra'])
                 venta_sug = float(art_previa['Venta'])
-            
-            # Si no hay exacta, miramos si hay PARECIDO (otro color)
             elif not parecido.empty:
                 art_previa = parecido.iloc[0]
-                # NO cambiamos el id_sug (dejamos el nuevo_id), pero copiamos atributos
+                # No cambiamos id_sug (se queda el nuevo_id), pero copiamos el resto
                 talla_sug = str(art_previa['Talla'])
                 compra_sug = float(art_previa['Compra'])
                 venta_sug = float(art_previa['Venta'])
-            
-            # Si ambos están vacíos, art_previa se queda como None y 
-            # las variables conservan sus valores iniciales (nuevo_id, "", 0.0)
 
-            # 3. PANEL VISUAL ORGANIZADO (Ahora cerrado por defecto)
+            # 4. PANEL VISUAL (Cerrado por defecto)
             if art_previa is not None:
                 tipo_msj = "✅ COINCIDENCIA EXACTA" if not exacto.empty else "💡 PRENDA SIMILAR (OTRO COLOR)"
-                
-                # expanded=False hace que empiece cerrado
                 with st.expander(f"{tipo_msj}: {art_previa['Categoria']} (ID: {art_previa['ID']})", expanded=False):
                     st.markdown("### 📋 Información en Inventario")
-                    
-                    # Layout de 3 columnas para datos limpios
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
                         st.markdown(f"**🎨 Color:**\n{art_previa['Color']}")
                         st.markdown(f"**📏 Talla:**\n{art_previa['Talla']}")
-                    with col2:
+                    with c2:
                         st.markdown(f"**💰 Compra:**\n{art_previa['Compra']}€")
                         st.markdown(f"**🏷️ Venta:**\n{art_previa['Venta']}€")
-                    with col3:
-                        st.markdown(f"**📦 Stock Actual:**\n{art_previa['Stock']} uds")
+                    with c3:
+                        st.markdown(f"**📦 Stock:**\n{art_previa['Stock']} uds")
                         st.markdown(f"**📅 Registro:**\n{art_previa['Fecha']}")
                     
                     st.divider()
-                    # Botón centrado o en su columna
                     if st.button("👁️ Visualizar Imagen Almacenada", key="btn_ver_previa"):
-                        # CAMBIO CLAVE AQUÍ: Usamos un ancho fijo para no expandirla
-                        # width=250 suele ser un buen tamaño para visualizar detalles sin exagerar
                         st.image(art_previa['Image_Ref'], width=250, caption=f"Foto del ID {art_previa['ID']}")
 
-            # 4. FORMULARIO DE REGISTRO
-            with st.form("form_ia_v4"):
-                st.write("### 📝 Confirmar Datos para el Registro")
+            # 5. FORMULARIO
+            with st.form("form_ia_final_v5"):
                 st.image(Image.open(archivo_foto), width=200)
-                
                 c_id, c_fecha = st.columns(2)
                 with c_id: e_id = st.number_input("ID Artículo", value=id_sug, step=1)
                 with c_fecha: e_fecha = st.date_input("Fecha", datetime.now())
 
-                c1, c2 = st.columns(2)
-                with c1:
+                col1, col2 = st.columns(2)
+                with col1:
                     e_cat = st.text_input("Categoría", value=cat_ia)
                     e_talla = st.text_input("Talla", value=talla_sug)
-                with c2:
+                with col2:
                     e_color = st.text_input("Color", value=col_ia)
-                    e_stock = st.number_input("Cantidad a sumar/añadir", min_value=1)
+                    e_stock = st.number_input("Cantidad", min_value=1)
 
-                c3, c4 = st.columns(2)
-                with c3: e_compra = st.number_input("Precio Compra (€)", value=compra_sug, format="%.2f")
-                with c4: e_venta = st.number_input("Precio Venta (€)", value=venta_sug, format="%.2f")
+                col3, col4 = st.columns(2)
+                with col3: e_compra = st.number_input("Precio Compra (€)", value=compra_sug, format="%.2f")
+                with col4: e_venta = st.number_input("Precio Venta (€)", value=venta_sug, format="%.2f")
 
-                if st.form_submit_button("🚀 GUARDAR EN INVENTARIO", use_container_width=True):
+                if st.form_submit_button("🚀 GUARDAR REGISTRO", use_container_width=True):
                     with st.spinner("Guardando..."):
                         res_cloudinary = cloudinary.uploader.upload(archivo_foto.getvalue(), folder="inventario", public_id=f"foto_{e_id}")
                         nueva_fila = pd.DataFrame([{
