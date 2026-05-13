@@ -188,37 +188,42 @@ with tab2:
             item_index = df_ver.index[df_ver['ID'].astype(str) == seleccion].tolist()
             datos = df_ver.loc[item_index]
 
-            col_img, col_edit = st.columns([1, 2]) # Damos un poco más de espacio al formulario
+            col_img, col_edit = st.columns()
 
             with col_img:
                 st.image(datos["Image_Ref"].values[0], caption="Foto Actual", use_container_width=True)
                 
-                # SUSTITUIMOS EL CHECKBOX POR UN TOGGLE MÁS MODERNO
-                habilitar_cambio = st.toggle("🔄 Actualizar fotografía", help="Activa esta opción para subir una nueva imagen y reemplazar la actual.")
-                
+                # Inicializamos el estado para mostrar el cargador si no existe
+                if "mostrar_cargador" not in st.session_state:
+                    st.session_state.mostrar_cargador = False
+
+                # BOTÓN SIMPLE PARA ACTIVAR LA SUBIDA
+                if st.button("📷 Cambiar / Añadir Foto"):
+                    st.session_state.mostrar_cargador = True
+
                 nueva_foto_archivo = None
-                if habilitar_cambio:
-                    st.info("Selecciona la nueva imagen debajo:")
-                    nueva_foto_archivo = st.file_uploader("Subir nuevo archivo", type=['jpg', 'jpeg', 'png'], key="update_uploader")
-                    if nueva_foto_archivo:
-                        st.image(nueva_foto_archivo, caption="Nueva previsualización", width=150)
+                if st.session_state.mostrar_cargador:
+                    nueva_foto_archivo = st.file_uploader("Selecciona la nueva imagen", type=['jpg', 'jpeg', 'png'], key="update_uploader")
+                    if st.button("❌ Cancelar cambio"):
+                        st.session_state.mostrar_cargador = False
+                        st.rerun()
 
             with col_edit:
-                with st.form("editor_maestro_v3"):
-                    st.write(f"📝 **Ficha de producto:** {seleccion}")
+                with st.form("editor_maestro_v4"):
+                    st.write(f"📝 **Ficha:** {seleccion}")
                     
-                    # Campos de edición (ID, Categoría, Talla, etc.)
+                    # Tus campos de texto (ID, Categoría, etc.)
                     nuevo_id = st.text_input("ID Producto", value=str(datos["ID"].values[0]))
                     e_cat = st.text_input("Categoría", value=str(datos["Categoria"].values[0]))
                     
                     c1, c2 = st.columns(2)
                     with c1:
                         e_talla = st.text_input("Talla", value=str(datos["Talla"].values[0]))
-                        e_compra = st.number_input("Precio Compra (€)", value=float(datos["Compra"].values[0]), format="%.2f")
+                        e_compra = st.number_input("Compra (€)", value=float(datos["Compra"].values[0]), format="%.2f")
                         e_stock = st.number_input("Stock", value=int(datos["Stock"].values[0]), min_value=0)
                     with c2:
                         e_color = st.text_input("Color", value=str(datos["Color"].values[0]))
-                        e_venta = st.number_input("Precio Venta (€)", value=float(datos["Venta"].values[0]), format="%.2f")
+                        e_venta = st.number_input("Venta (€)", value=float(datos["Venta"].values[0]), format="%.2f")
                         e_fecha = st.text_input("Fecha", value=str(datos["Fecha"].values[0]))
 
                     st.write("---")
@@ -226,15 +231,14 @@ with tab2:
                     guardar_seguir = c_btn1.form_submit_button("💾 Guardar y Seguir")
                     guardar_salir = c_btn2.form_submit_button("🚪 Guardar y Salir")
 
-                # LÓGICA DE GUARDADO (Dentro del bloque col_edit pero fuera del form)
+                # LÓGICA DE GUARDADO
                 if guardar_seguir or guardar_salir:
                     try:
-                        # 1. URL por defecto es la que ya existe
                         url_final_foto = datos["Image_Ref"].values[0]
                         
-                        # 2. Si el toggle está ON y hay archivo, subimos a Cloudinary
-                        if habilitar_cambio and nueva_foto_archivo is not None:
-                            with st.spinner("Subiendo nueva imagen a la nube..."):
+                        # Si hay un archivo en el cargador, lo subimos
+                        if nueva_foto_archivo is not None:
+                            with st.spinner("Subiendo nueva imagen..."):
                                 res_subida = cloudinary.uploader.upload(
                                     nueva_foto_archivo.getvalue(), 
                                     folder="inventario",
@@ -242,29 +246,21 @@ with tab2:
                                 )
                                 url_final_foto = res_subida['secure_url']
 
-                        # 3. Actualizamos el DataFrame
-                        df_ver.loc[item_index, "ID"] = nuevo_id
-                        df_ver.loc[item_index, "Categoria"] = e_cat
-                        df_ver.loc[item_index, "Talla"] = e_talla
-                        df_ver.loc[item_index, "Color"] = e_color
-                        df_ver.loc[item_index, "Compra"] = e_compra
-                        df_ver.loc[item_index, "Venta"] = e_venta
-                        df_ver.loc[item_index, "Stock"] = e_stock
-                        df_ver.loc[item_index, "Fecha"] = e_fecha
-                        df_ver.loc[item_index, "Image_Ref"] = url_final_foto
+                        # Actualización de datos
+                        df_ver.loc[item_index, ["ID", "Categoria", "Talla", "Color", "Compra", "Venta", "Stock", "Fecha", "Image_Ref"]] = [
+                            nuevo_id, e_cat, e_talla, e_color, e_compra, e_venta, e_stock, e_fecha, url_final_foto
+                        ]
                         
                         conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_ver)
-                        st.success("✅ Cambios e imagen actualizados")
+                        st.success("✅ Cambios actualizados")
                         
-                        # Gestión de sesión para que no se cierre si no queremos
-                        if guardar_salir:
-                            st.session_state.prenda_seleccionada = "-- Elige un ID --"
-                        else:
-                            st.session_state.prenda_seleccionada = nuevo_id
+                        # Resetear el estado del cargador
+                        st.session_state.mostrar_cargador = False
                         
+                        st.session_state.prenda_seleccionada = "-- Elige un ID --" if guardar_salir else nuevo_id
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error técnico: {e}")
+                        st.error(f"Error: {e}")
 
 
                 # BOTÓN ELIMINAR
