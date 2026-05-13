@@ -216,8 +216,6 @@ with tab2:
                     st.success(f"¡{id_seleccionado} actualizado correctamente!")
                     st.rerun()
 
-        else:
-            st.info("Aún no hay prendas registradas.")
         # Botón opcional para refrescar si haces cambios manuales en el Sheets
         if st.button("🔄 Actualizar lista"):
             st.rerun()
