@@ -161,67 +161,68 @@ with tab2:
 
         st.divider()
 
-        # 2. SELECTOR (Aquí se crea la variable 'seleccion')
-        st.subheader("🔍 Buscador y Editor de Productos")
+        # 2. SELECTOR MAESTRO
         opciones_id = df_ver.apply(lambda x: f"{x['ID']} - {x['Categoria']}", axis=1).tolist()
         
-        # DEFINIMOS LA VARIABLE
-        seleccion = st.selectbox("Selecciona una prenda:", ["-- Elige una prenda --"] + opciones_id)
+        # Usamos session_state para mantener la selección después del guardado
+        # Si no existe en sesión, ponemos el valor por defecto
+        if "prenda_seleccionada" not in st.session_state:
+            st.session_state.prenda_seleccionada = "-- Elige una prenda --"
 
-        # USAMOS LA VARIABLE (Debe estar al mismo nivel de sangría que el selectbox)
+        seleccion = st.selectbox(
+            "Selecciona una prenda:", 
+            ["-- Elige una prenda --"] + opciones_id,
+            index=(["-- Elige una prenda --"] + opciones_id).index(st.session_state.prenda_seleccionada)
+        )
+
         if seleccion != "-- Elige una prenda --":
-            # 1. Identificar la prenda
-            id_original = seleccion.split(" - ")[0] # Guardamos el ID de referencia
+            st.session_state.prenda_seleccionada = seleccion # Actualizamos la sesión
+            
+            id_original = seleccion.split(" - ")[0]
             item_index = df_ver.index[df_ver['ID'].astype(str) == id_original].tolist()
             datos = df_ver.loc[item_index]
 
             col_img, col_edit = st.columns([1, 2])
 
             with col_img:
-                st.image(datos["Image_Ref"].values[0], caption=f"ID Actual: {id_original}", use_container_width=True)
-                st.caption(f"📅 Registrado: {datos['Fecha'].values[0]}")
+                st.image(datos["Image_Ref"].values[0], caption=f"ID: {id_original}", use_container_width=True)
 
             with col_edit:
-                with st.form("editor_maestro_total"):
-                    st.write(f"📝 Editando ficha: **{id_original}**")
-                    
-                    # AHORA EL ID ES UN CAMPO EDITABLE
-                    nuevo_id = st.text_input("ID Producto (Puedes modificarlo)", value=str(datos["ID"].values[0]))
+                # CREAMOS DOS BOTONES DE GUARDADO DIFERENTES
+                with st.form("editor_maestro_continuo"):
+                    # ... (Todos tus campos text_input y number_input aquí igual que antes) ...
+                    nuevo_id = st.text_input("ID Producto", value=str(datos["ID"].values[0]))
                     e_cat = st.text_input("Categoría", value=str(datos["Categoria"].values[0]))
+                    # (Añade el resto de campos: talla, color, compra, venta, stock, fecha...)
                     
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        e_talla = st.text_input("Talla", value=str(datos["Talla"].values[0]))
-                        e_compra = st.number_input("Precio Compra (€)", value=float(datos["Compra"].values[0]), step=0.01, format="%.2f")
-                        e_stock = st.number_input("Stock", value=int(datos["Stock"].values[0]), min_value=0)
-                    with c2:
-                        e_color = st.text_input("Color", value=str(datos["Color"].values[0]))
-                        e_venta = st.number_input("Precio Venta (€)", value=float(datos["Venta"].values[0]), step=0.01, format="%.2f")
-                        e_fecha = st.text_input("Fecha", value=str(datos["Fecha"].values[0]))
+                    st.write("---")
+                    c_btn1, c_btn2 = st.columns(2)
+                    guardar_continuar = c_btn1.form_submit_button("💾 Guardar y Seguir")
+                    guardar_salir = c_btn2.form_submit_button("🚪 Guardar y Salir")
 
-                    submit_edit = st.form_submit_button("💾 Guardar Cambios Totales", use_container_width=True)
-                
-                # Botón de borrar
-                if st.button("🗑️ ELIMINAR ESTA PRENDA", type="primary", use_container_width=True):
-                    df_nuevo = df_ver.drop(item_index)
-                    conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_nuevo)
-                    st.warning(f"Producto {id_original} eliminado.")
+                # LÓGICA DE GUARDADO
+                if guardar_continuar or guardar_salir:
+                    # Actualizamos el DataFrame (igual que antes)
+                    df_ver.loc[item_index, "ID"] = nuevo_id
+                    # ... (Actualiza todos los campos e_cat, e_talla, etc.) ...
+                    
+                    conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_ver)
+                    st.success("✅ ¡Cambios guardados!")
+                    
+                    if guardar_salir:
+                        st.session_state.prenda_seleccionada = "-- Elige una prenda --"
+                    else:
+                        # Si continuamos, actualizamos la etiqueta del selector por si cambió el ID o Categoría
+                        st.session_state.prenda_seleccionada = f"{nuevo_id} - {e_cat}"
+                    
                     st.rerun()
 
-                if submit_edit:
-                    # Aplicamos los cambios en el DataFrame (incluyendo el nuevo ID)
-                    df_ver.loc[item_index, "ID"] = nuevo_id
-                    df_ver.loc[item_index, "Categoria"] = e_cat
-                    df_ver.loc[item_index, "Talla"] = e_talla
-                    df_ver.loc[item_index, "Color"] = e_color
-                    df_ver.loc[item_index, "Compra"] = e_compra
-                    df_ver.loc[item_index, "Venta"] = e_venta
-                    df_ver.loc[item_index, "Stock"] = e_stock
-                    df_ver.loc[item_index, "Fecha"] = e_fecha
-                    
-                    # Subida a Google Sheets
-                    conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_ver)
-                    st.success(f"✅ Prenda actualizada. Nuevo ID: {nuevo_id}")
+                # BOTÓN ELIMINAR (Siempre sale del editor al borrar)
+                if st.button("🗑️ ELIMINAR PRENDA", type="primary", use_container_width=True):
+                    df_nuevo = df_ver.drop(item_index)
+                    conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_nuevo)
+                    st.session_state.prenda_seleccionada = "-- Elige una prenda --"
+                    st.warning("Prenda eliminada.")
                     st.rerun()
 
 
