@@ -156,19 +156,11 @@ with tab2:
             use_container_width=True,
             hide_index=True
           )
-        st.divider()
-        buscar_id = st.text_input("🔍 Buscar ID para ver foto grande")
-        if buscar_id:
-            res = df_ver[df_ver['ID'].astype(str) == buscar_id]
-            if not res.empty:
-                url = res['Image_Ref'].values[0]
-                st.image(url, width=350, caption=f"ID: {buscar_id}")
-            else:
-                st.error("No se encontró el ID.")
-
+    
+        # 2. SELECTOR PARA GESTIÓN TOTAL Edicion (CRUD)
         st.divider()
 
-        # 2. SELECTOR PARA GESTIÓN TOTAL
+        
         st.subheader("🛠️ Editor Maestro de Producto")
         id_seleccionado = st.selectbox("Selecciona el ID que deseas modificar:", ["-- Seleccionar --"] + df_ver["ID"].tolist())
 
