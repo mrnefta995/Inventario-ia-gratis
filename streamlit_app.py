@@ -158,9 +158,9 @@ with tab2:
           )
       
           # --- Buscador Visual Individual ---
-          st.divider()
-          buscar_id = st.text_input("🔍 Escribe un ID para ver la foto en grande")
-          if buscar_id:
+        st.divider()
+        buscar_id = st.text_input("🔍 Escribe un ID para ver la foto en grande")
+        if buscar_id:
               resultado = df_ver[df_ver['ID'].astype(str) == buscar_id]
               if not resultado.empty:
                   url_grande = resultado['Image_Ref'].values[0]
