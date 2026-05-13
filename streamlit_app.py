@@ -23,6 +23,8 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 st.set_page_config(page_title="Almacén IA Pro", layout="wide")
 st.title("👕 Gestor de Inventario con Fecha")
 
+# 1. Define la URL de la imagen negra "Sin Imagen"
+URL_SIN_IMAGEN = "https://res.cloudinary.com/daquubngv/image/upload/v1778660130/sin_imagen_zy2jcx.jpg"
 # Función de lectura sin caché para no perder datos
 def leer_datos():
     df = conn.read(spreadsheet=st.secrets["spreadsheet_url"], ttl=0)
@@ -32,93 +34,86 @@ def leer_datos():
 
 tab1, tab2 = st.tabs(["➕ Registrar Prenda", "📋 Ver Inventario"])
 
+# --- 2. SUSTITUYE TU TAB 1 ACTUAL (Desde la línea 60 aprox) POR ESTO ---
 with tab1:
-    foto = st.file_uploader("Subir foto", type=['jpg', 'jpeg', 'png'])
-    if foto:
-        st.image(Image.open(foto), width=200)
-        if st.button("🤖 Analizar con IA Preview"):
-            with st.spinner("Analizando..."):
-                try:
-                    # Prompt para separar categoría y color
-                    prompt = "Analiza esta prenda. Responde solo en este formato: CATEGORIA / COLOR"
-                    response = model.generate_content([prompt, Image.open(foto)])
-                    
-                    texto = response.text.replace("Categoría:", "").replace("Color:", "").strip()
-                    partes = texto.split("/") if "/" in texto else [texto, ""]
-                    
-                    st.session_state.temp = {
-                        "id": f"REF-{datetime.now().strftime('%M%S')}",
-                        "cat": partes[0].strip(),
-                        "col": partes[1].strip() if len(partes) > 1 else ""
-                    }
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error IA: {e}")
+    st.header("Registrar Nueva Prenda")
+    
+    # El cargador de archivos ahora es opcional
+    archivo_foto = st.file_uploader("Sube la foto de la prenda (Opcional)", type=["jpg", "png", "jpeg"])
 
-    if 'temp' in st.session_state:
-        with st.form("registro_con_fecha"):
-            col1, col2 = st.columns(2)
-            with col1:
-                f_id = st.text_input("ID Producto", value=st.session_state.temp['id'])
-                f_cat = st.text_input("Categoría", value=st.session_state.temp['cat'])
-                # La fecha se genera automáticamente al guardar, no hace falta campo de texto
-                f_talla = st.text_input("Talla")
-            with col2:
-                f_col = st.text_input("Color", value=st.session_state.temp['col'])
-                f_compra = st.number_input("Precio Compra €", format="%.2f", min_value=0.0)
-                f_venta = st.number_input("Precio Venta €", format="%.2f", min_value=0.0)
+    # Inicializamos las variables vacías
+    e_cat = ""
+    e_color = ""
+
+    # LÓGICA INTELIGENTE:
+    if archivo_foto is not None:
+        # SI HAY FOTO -> PROCESA CON IA
+        imagen_pil = Image.open(archivo_foto)
+        st.image(imagen_pil, caption="Vista previa", width=200)
+        
+        with st.spinner("IA analizando la prenda..."):
+            prompt = "Analiza esta prenda y devuelve únicamente: CATEGORIA / COLOR"
+            # Asegúrate que el nombre de tu modelo sea el que configuraste arriba (model)
+            respuesta = model.generate_content([prompt, imagen_pil])
+            try:
+                datos_ia = respuesta.text.split("/")
+                e_cat = datos_ia[0].strip()
+                e_color = datos_ia[1].strip()
+            except:
+                st.warning("No pude extraer datos automáticamente. Por favor, rellena los campos.")
+    else:
+        # SI NO HAY FOTO -> PERMITE ENTRADA MANUAL
+        st.info("ℹ️ No se ha subido foto. Introduce los datos manualmente.")
+    
+    # CAMPOS DE ENTRADA (Se rellenan solos si hay IA, o los escribes tú si no la hay)
+    col1, col2 = st.columns(2)
+    with col1:
+        e_cat = st.text_input("Categoría", value=e_cat)
+    with col2:
+        e_color = st.text_input("Color", value=e_color)
+
+    # Resto de campos que ya tenías...
+    e_fecha = st.date_input("Fecha", datetime.now())
+    e_talla = st.selectbox("Talla", ["S", "M", "L", "XL", "Única"])
+    e_compra = st.number_input("Precio Compra", min_value=0.0, step=0.1)
+    e_venta = st.number_input("Precio Venta", min_value=0.0, step=0.1)
+    e_stock = st.number_input("Stock Inicial", min_value=1, step=1)
+
+    if st.button("💾 Guardar en Inventario"):
+        with st.spinner("Registrando..."):
+            # LÓGICA DE IMAGEN FINAL
+            if archivo_foto is not None:
+                # Subir a Cloudinary
+                res_subida = cloudinary.uploader.upload(
+                    archivo_foto.getvalue(), 
+                    folder="inventario", 
+                    public_id=f"foto_{nuevo_id}"
+                )
+                url_final_foto = res_subida['secure_url']
+            else:
+                # Usar la imagen negra por defecto
+                url_final_foto = URL_SIN_IMAGEN
+
+            # CREAR FILA Y SUBIR A GOOGLE SHEETS
+            # (Ajusta los nombres de tus variables si cambian en tu archivo)
+            nueva_fila = pd.DataFrame([{
+                "ID": nuevo_id,
+                "Categoria": e_cat,
+                "Fecha": e_fecha.strftime('%Y-%m-%d'),
+                "Talla": e_talla,
+                "Color": e_color,
+                "Compra": e_compra,
+                "Venta": e_venta,
+                "Stock": e_stock,
+                "Image_Ref": url_final_foto
+            }])
             
-            f_stock = st.number_input("Stock", min_value=1, value=1)
-
-            if st.form_submit_button("✅ Guardar en Almacén"):
-                df_actual = leer_datos()
-                
-                # 1. Validaciones previas
-                if f_id in df_actual['ID'].astype(str).values:
-                    st.error("⚠️ El ID ya existe.")
-                elif not f_talla:
-                    st.warning("⚠️ Introduce la talla.")
-                else:
-                    try:
-                        with st.spinner("Subiendo imagen y guardando datos..."):
-                            # 2. Subida a Cloudinary
-                            resultado_subida = cloudinary.uploader.upload(
-                                foto.getvalue(), 
-                                folder="inventario_ropa"
-                            )
-                            url_foto = resultado_subida['secure_url'] 
-                
-                            # 3. Preparar la nueva fila con el orden correcto de columnas
-                            nueva_fila = {
-                                "ID": str(f_id),
-                                "Categoria": str(f_cat),
-                                "Fecha": datetime.now().strftime("%d/%m/%Y"),
-                                "Talla": str(f_talla),
-                                "Color": str(f_col),
-                                "Compra": float(f_compra),
-                                "Venta": float(f_venta),
-                                "Stock": int(f_stock),
-                                "Image_Ref": url_foto 
-                            }
-
-                            # 4. Unir datos y asegurar orden de columnas (evita duplicados)
-                            df_final = pd.concat([df_actual, pd.DataFrame([nueva_fila])], ignore_index=True)
-                            columnas_orden = ["ID", "Categoria", "Fecha", "Talla", "Color", "Compra", "Venta", "Stock", "Image_Ref"]
-                            df_final = df_final[columnas_orden]
-
-                            # 5. Actualizar Google Sheets
-                            conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
-                            
-                            st.success(f"¡Guardado con éxito! ID: {f_id}")
-                            st.balloons()
-                            
-                            # Limpiar y recargar
-                            if 'temp' in st.session_state:
-                                del st.session_state.temp
-                            st.rerun()
-
-                    except Exception as e:
-                        st.error(f"❌ Error crítico al guardar: {e}")
+            # Unir con el dataframe actual y actualizar
+            df_actualizado = pd.concat([df_inventario, nueva_fila], ignore_index=True)
+            conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_actualizado)
+            
+            st.success(f"✅ Prenda {nuevo_id} guardada correctamente.")
+            st.rerun()
 
 
 with tab2:
