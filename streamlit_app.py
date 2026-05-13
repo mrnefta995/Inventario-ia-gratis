@@ -169,6 +169,8 @@ with tab2:
                     st.image(url_grande, caption=f"Referencia: {buscar_id}", width=300)
                 else:
                     st.warning("Este ID no tiene una imagen válida.")
+              else:
+                st.error("ID no encontrado en el sistema.")
           
 
       else:
