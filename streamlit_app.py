@@ -158,17 +158,17 @@ with tab2:
           )
 
           # 3. Buscador para ver la foto en GRANDE (Alineado correctamente)
-          st.divider()
-          buscar_id = st.text_input("🔍 Escribe un ID para ver la foto en grande")
+        st.divider()
+        buscar_id = st.text_input("🔍 Escribe un ID para ver la foto en grande")
           
-          if buscar_id:
-              resultado = df_ver[df_ver['ID'].astype(str) == buscar_id]
-              if not resultado.empty:
-                  url_grande = resultado['Image_Ref'].values[0]
-                  if "http" in str(url_grande):
-                      st.image(url_grande, caption=f"Referencia: {buscar_id}", width=300)
-                  else:
-                      st.warning("Este ID no tiene una imagen válida.")
+        if buscar_id:
+            resultado = df_ver[df_ver['ID'].astype(str) == buscar_id]
+            if not resultado.empty:
+                url_grande = resultado['Image_Ref'].values[0]
+                if "http" in str(url_grande):
+                    st.image(url_grande, caption=f"Referencia: {buscar_id}", width=300)
+                else:
+                    st.warning("Este ID no tiene una imagen válida.")
           
 
       else:
