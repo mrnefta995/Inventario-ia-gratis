@@ -164,57 +164,61 @@ with tab2:
         st.subheader("🛠️ Editor Maestro de Producto")
         id_seleccionado = st.selectbox("Selecciona el ID que deseas modificar:", ["-- Seleccionar --"] + df_ver["ID"].tolist())
 
-        if id_seleccionado != "-- Seleccionar --":
-            # Extraemos el índice y los datos actuales
-            item_index = df_ver.index[df_ver['ID'] == id_seleccionado].tolist()[0]
+        if seleccion != "-- Elige una prenda --":
+            # 1. Identificar la prenda
+            id_original = seleccion.split(" - ")[0] # Guardamos el ID de referencia
+            item_index = df_ver.index[df_ver['ID'].astype(str) == id_original].tolist()
             datos = df_ver.loc[item_index]
 
             col_img, col_edit = st.columns([1, 2])
 
             with col_img:
-                st.image(datos["Image_Ref"], caption=f"Referencia actual: {id_seleccionado}", width=250)
-                st.caption(f"Registrado el: {datos['Fecha']}")
+                st.image(datos["Image_Ref"].values[0], caption=f"ID Actual: {id_original}", use_container_width=True)
+                st.caption(f"📅 Registrado: {datos['Fecha'].values[0]}")
 
             with col_edit:
-                with st.form("editor_completo"):
-                    st.write(f"📝 Editando: **{id_seleccionado}**")
+                with st.form("editor_maestro_total"):
+                    st.write(f"📝 Editando ficha: **{id_original}**")
                     
-                    e_cat = st.text_input("Categoría", value=str(datos["Categoria"]))
+                    # AHORA EL ID ES UN CAMPO EDITABLE
+                    nuevo_id = st.text_input("ID Producto (Puedes modificarlo)", value=str(datos["ID"].values[0]))
+                    e_cat = st.text_input("Categoría", value=str(datos["Categoria"].values[0]))
                     
                     c1, c2 = st.columns(2)
                     with c1:
-                        e_talla = st.text_input("Talla", value=str(datos["Talla"]))
-                        e_compra = st.number_input("Precio Compra (€)", value=float(datos["Compra"]), step=0.01, format="%.2f")
-                        e_stock = st.number_input("Unidades en Stock", value=int(datos["Stock"]), min_value=0)
+                        e_talla = st.text_input("Talla", value=str(datos["Talla"].values[0]))
+                        e_compra = st.number_input("Precio Compra (€)", value=float(datos["Compra"].values[0]), step=0.01, format="%.2f")
+                        e_stock = st.number_input("Stock", value=int(datos["Stock"].values[0]), min_value=0)
                     with c2:
-                        e_color = st.text_input("Color", value=str(datos["Color"]))
-                        e_venta = st.number_input("Precio Venta (€)", value=float(datos["Venta"]), step=0.01, format="%.2f")
-                        e_fecha = st.text_input("Fecha (dd/mm/aaaa)", value=str(datos["Fecha"]))
+                        e_color = st.text_input("Color", value=str(datos["Color"].values[0]))
+                        e_venta = st.number_input("Precio Venta (€)", value=float(datos["Venta"].values[0]), step=0.01, format="%.2f")
+                        e_fecha = st.text_input("Fecha", value=str(datos["Fecha"].values[0]))
 
-                    # BOTONES DENTRO DEL FORMULARIO
-                    submit_edit = st.form_submit_button("💾 Guardar todos los cambios", use_container_width=True)
+                    submit_edit = st.form_submit_button("💾 Guardar Cambios Totales", use_container_width=True)
                 
-                # Botón de borrar fuera del formulario de edición por seguridad
-                if st.button("🗑️ ELIMINAR PRODUCTO PERMANENTEMENTE", type="primary", use_container_width=True):
+                # Botón de borrar
+                if st.button("🗑️ ELIMINAR ESTA PRENDA", type="primary", use_container_width=True):
                     df_nuevo = df_ver.drop(item_index)
                     conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_nuevo)
-                    st.warning(f"Producto {id_seleccionado} eliminado.")
+                    st.warning(f"Producto {id_original} eliminado.")
                     st.rerun()
 
                 if submit_edit:
-                    # Actualizamos todos los valores en el DataFrame
-                    df_ver.at[item_index, "Categoria"] = e_cat
-                    df_ver.at[item_index, "Talla"] = e_talla
-                    df_ver.at[item_index, "Color"] = e_color
-                    df_ver.at[item_index, "Compra"] = e_compra
-                    df_ver.at[item_index, "Venta"] = e_venta
-                    df_ver.at[item_index, "Stock"] = e_stock
-                    df_ver.at[item_index, "Fecha"] = e_fecha
+                    # Aplicamos los cambios en el DataFrame (incluyendo el nuevo ID)
+                    df_ver.loc[item_index, "ID"] = nuevo_id
+                    df_ver.loc[item_index, "Categoria"] = e_cat
+                    df_ver.loc[item_index, "Talla"] = e_talla
+                    df_ver.loc[item_index, "Color"] = e_color
+                    df_ver.loc[item_index, "Compra"] = e_compra
+                    df_ver.loc[item_index, "Venta"] = e_venta
+                    df_ver.loc[item_index, "Stock"] = e_stock
+                    df_ver.loc[item_index, "Fecha"] = e_fecha
                     
-                    # Subimos a Google Sheets
+                    # Subida a Google Sheets
                     conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_ver)
-                    st.success(f"¡{id_seleccionado} actualizado correctamente!")
+                    st.success(f"✅ Prenda actualizada. Nuevo ID: {nuevo_id}")
                     st.rerun()
+
 
         # Botón opcional para refrescar si haces cambios manuales en el Sheets
         if st.button("🔄 Actualizar lista"):
