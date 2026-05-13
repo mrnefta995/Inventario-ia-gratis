@@ -214,13 +214,15 @@ with tab2:
         total_inv = (df_ver["Compra"] * df_ver["Stock"]).sum()
         st.divider()
         st.metric("Inversión Total en Almacén", f"{total_inv:,.2f} €")
-        
-    else:
-        st.info("El inventario está vacío. Registra tu primera prenda.")
-        st.info("Aún no hay prendas registradas.")
-
+      
         # 3. BOTÓN DE DESCARGA (Exportar)
         st.divider()
         csv = df_ver.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Descargar Inventario completo (CSV)", data=csv, file_name="inventario_real.csv", mime="text/csv")
+      
+    else:
+        st.info("El inventario está vacío. Registra tu primera prenda.")
+        st.info("Aún no hay prendas registradas.")
+
+        
 
