@@ -112,9 +112,6 @@ with tab1:
 #Pestaña 2 Inventario y control
 with tab2:
     # --- 1. PREPARACIÓN DE DATOS (ESTO DEBE IR PRIMERO) ---
-    # Cambiamos "buscador_inv" por "buscador_tab2_final" para que sea único
-    bus = st.text_input("🔍 Buscar por ID, Categoría o Color", key="buscador_tab2_final").lower()
-    
     # Creamos df_ver aquí para que esté disponible para todo lo que viene debajo
     df_ver = df_inventario.copy()
     if bus:
