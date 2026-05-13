@@ -180,7 +180,7 @@ with tab2:
     # CSS de la tabla
     st.markdown("""<style>
         table {width: 100%; border-collapse: collapse;}
-        th {background-color: #d1d5db !important; color: #1f2937 !important; padding: 12px; border: 1px solid #9ca3af;}
+        th {background-color: #d1d5db !important; color: #1f2937 !important; padding: 12px; border: 1px solid #9ca3af;text-align: center !important; /* CENTRADO DE TÍTULOS */}
         td {text-align: center !important; vertical-align: middle !important; padding: 8px; border-bottom: 1px solid #e5e7eb;}
         tr:hover {background-color: rgba(156, 163, 175, 0.3) !important; transition: 0.2s;}
     </style>""", unsafe_allow_html=True)
