@@ -49,7 +49,7 @@ except:
 st.title("👕 Gestor de Inventario Pro")
 
 # --- 5. PESTAÑAS PRINCIPALES ---
-tab1, tab2 = st.tabs(["➕ Registrar Prenda", "📋 Ver e Interactuar"])
+tab1, tab2, tab3 = st.tabs(["➕ Registrar Prenda", "📋 Ver e Interactuar", "📊 Análisis y Gráficos"])
 
 # --- TAB 1: REGISTRO ---
 with tab1:
@@ -214,14 +214,85 @@ with tab2:
                 st.session_state.pag_actual += 1
                 st.rerun()
 
-    # 7. Gráfica de Análisis
-    st.divider()
-    if not df_inventario.empty:
-        st.markdown("### 📈 Análisis de Inversión por Categoría")
-        with st.container(border=True):
+# --- TAB 3: ANÁLISIS Y GRÁFICOS ---
+with tab3:
+    st.header("📊 Análisis Estadístico del Inventario")
+    
+    if df_inventario.empty:
+        st.info("No hay datos suficientes para generar gráficos. Registra algunas prendas primero.")
+    else:
+        # --- FILA DE MÉTRICAS RÁPIDAS ---
+        # Calculamos datos clave para la pestaña de análisis
+        total_prendas = df_inventario["Stock"].sum()
+        inversion_total = (df_inventario["Stock"] * df_inventario["Compra"]).sum()
+        precio_medio_venta = df_inventario["Venta"].mean()
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Unidades Totales", f"{total_prendas} uds")
+        m2.metric("Inversión en Stock", f"{inversion_total:,.2f} €")
+        m3.metric("Promedio Venta", f"{precio_medio_venta:,.2f} €")
+        
+        st.write("---")
+        
+        # --- ZONA DE GRÁFICAS ---
+        col_chart1, col_chart2 = st.columns([2, 1])
+        
+        with col_chart1:
+            st.subheader("💰 Distribución de la Inversión")
+            # Preparación de datos
             df_inv = df_inventario.copy()
             df_inv["Inversion"] = df_inv["Compra"] * df_inv["Stock"]
-            fig = px.pie(df_inv, values='Inversion', names='Categoria', hole=.4, color_discrete_sequence=px.colors.qualitative.Bold)
-            fig.update_layout(margin=dict(t=20, b=20, l=20, r=20), legend=dict(bgcolor="rgba(240, 242, 246, 0.9)", bordercolor="#9ca3af", borderwidth=1))
-            fig.update_traces(textposition='inside', textinfo='percent+label')
-            st.plotly_chart(fig, use_container_width=True)
+            
+            fig_pie = px.pie(
+                df_inv, 
+                values='Inversion', 
+                names='Categoria', 
+                hole=.4,
+                color_discrete_sequence=px.colors.qualitative.Bold,
+                template="plotly_white"
+            )
+            
+            fig_pie.update_layout(
+                margin=dict(t=30, b=30, l=30, r=30),
+                legend=dict(
+                    bgcolor="rgba(255, 255, 255, 0.7)",
+                    bordercolor="#9ca3af",
+                    borderwidth=1
+                )
+            )
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        with col_chart2:
+            st.subheader("📦 Stock por Categoría")
+            # Gráfico de barras simple para ver cantidades
+            df_stock_cat = df_inventario.groupby("Categoria")["Stock"].sum().reset_index()
+            fig_bar = px.bar(
+                df_stock_cat, 
+                x="Categoria", 
+                y="Stock",
+                color="Categoria",
+                text_auto=True,
+                color_discrete_sequence=px.colors.qualitative.Safe
+            )
+            fig_bar.update_layout(showlegend=False)
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        # --- TABLA RESUMEN DE RENDIMIENTO ---
+        st.write("---")
+        st.subheader("📈 Resumen de Valor por Categoría")
+        
+        # Agrupamos datos para mostrar una tabla informativa
+        resumen_cat = df_inventario.groupby("Categoria").agg({
+            "Stock": "sum",
+            "Compra": "mean",
+            "Venta": "mean"
+        }).reset_index()
+        
+        resumen_cat.columns = ["Categoría", "Stock Total", "Precio Compra Medio", "Precio Venta Medio"]
+        
+        # Aplicamos formato de moneda para que sea profesional
+        resumen_cat["Precio Compra Medio"] = resumen_cat["Precio Compra Medio"].map("{:,.2f} €".format)
+        resumen_cat["Precio Venta Medio"] = resumen_cat["Precio Venta Medio"].map("{:,.2f} €".format)
+        
+        st.table(resumen_cat)
