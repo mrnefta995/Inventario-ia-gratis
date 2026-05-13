@@ -239,41 +239,65 @@ with tab1:
                     st.rerun()
 
 with tab2:
-    st.subheader("📋 Control de Stock y Finanzas")
-    df_ver = leer_datos()
+    st.header("📋 Visualización del Inventario")
     
-    if not df_ver.empty:
-      # TRUCO: Limpiamos posibles espacios en los links que impiden que se vea la imagen
-        if "Image_Ref" in df_ver.columns:
-            df_ver["Image_Ref"] = df_ver["Image_Ref"].astype(str).str.strip()
+    # 1. Filtros y Buscador
+    c_bus, c_cat = st.columns([3, 1])
+    with c_bus:
+        busqueda = st.text_input("🔍 Buscar por ID, Categoría o Color", placeholder="Ej: Camiseta Negro").lower()
+    with c_cat:
+        cats_disponibles = ["Todas"] + sorted(df_inventario["Categoria"].unique().tolist())
+        filtro_cat = st.selectbox("Filtrar por Categoría", cats_disponibles)
 
-        # Mostramos la tabla con configuración de columnas para los Euros
-        st.dataframe(
-            df_ver,
-            column_config={
-                "ID": st.column_config.TextColumn("ID"),
-                "Categoria": st.column_config.TextColumn("Categoría"),
-                "Fecha": st.column_config.TextColumn("Fecha Registro"),
-                "Talla": st.column_config.TextColumn("Talla"),
-                "Color": st.column_config.TextColumn("Color"),
-                "Compra": st.column_config.NumberColumn(
-                    "Precio Compra",
-                    format="%.2f €"  # <--- Esto añade el formato Euro
-                ),
-                "Venta": st.column_config.NumberColumn(
-                    "Precio Venta",
-                    format="%.2f €"  # <--- Esto añade el formato Euro
-                ),
-                "Stock": st.column_config.NumberColumn("Unidades", format="%d uds"),
-                "Image_Ref": st.column_config.TextColumn("Vista Previa",
-                help="Foto de la prenda",
-                width="medium" # Le damos un tamaño medio para que se vea mejor
-                )                                               
-            },
-            use_container_width=True,
-            hide_index=True
-          )
+    # 2. Aplicar Filtros
+    df_mostrar = df_inventario.copy()
     
+    if filtro_cat != "Todas":
+        df_mostrar = df_mostrar[df_mostrar["Categoria"] == filtro_cat]
+        
+    if busqueda:
+        df_mostrar = df_mostrar[
+            df_mostrar["ID"].astype(str).str.lower().str.contains(busqueda) | 
+            df_mostrar["Categoria"].astype(str).str.lower().str.contains(busqueda) |
+            df_mostrar["Color"].astype(str).str.lower().str.contains(busqueda)
+        ]
+
+    # --- 3. LÓGICA DE VISTA PREVIA (HTML) ---
+    st.write(f"Mostrando {len(df_mostrar)} artículos.")
+    
+    # Creamos una columna temporal 'Preview' con código HTML
+    # height='50px' asegura un tamaño pequeño y razonable en la tabla
+    df_mostrar['Preview'] = df_mostrar['Image_Ref'].apply(
+        lambda url: f'<img src="{url}" height="50px" style="border-radius: 5px;">'
+    )
+
+    # Definimos qué columnas queremos ver y en qué orden
+    columnas_a_mostrar = [
+        'Preview', 'ID', 'Categoria', 'Color', 'Talla', 
+        'Stock', 'Compra', 'Venta', 'Fecha'
+    ]
+    
+    # Reordenamos el DataFrame y eliminamos las columnas sobrantes ('Image_Ref')
+    df_final_tabla = df_mostrar[columnas_a_mostrar]
+
+    # --- 4. RENDERIZADO PROFESIONAL DE LA TABLA ---
+    # Usamos to_html y st.markdown para que el HTML se ejecute
+    
+    # CSS para mejorar la estética de la tabla HTML
+    st.markdown("""
+        <style>
+            table { width: 100%; border-collapse: collapse; }
+            th, td { text-align: center !important; padding: 10px; border-bottom: 1px solid #ddd; }
+            th { background-color: #f5f5f5; color: black; font-weight: bold; }
+            tr:hover { background-color: #f1f1f1; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Renderizamos la tabla permitiendo HTML
+    st.markdown(
+        df_final_tabla.to_html(escape=False, index=False), 
+        unsafe_allow_html=True
+    )
         
 
         st.divider()
