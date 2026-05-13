@@ -112,7 +112,6 @@ with tab1:
 
 # --- TAB 2: INVENTARIO ---
 with tab2:
-    st.subheader("📋 Control de Stock Visual")
 
     # Título y Botón de Gestión en la misma línea para simetría
     col_t1, col_t2 = st.columns([3, 1])
