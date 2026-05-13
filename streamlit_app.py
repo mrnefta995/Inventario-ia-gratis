@@ -132,12 +132,32 @@ with tab2:
     df_html['Venta'] = df_html['Venta'].apply(lambda x: f"{x:,.2f} €")
     
     cols_tab = ['Vista', 'ID', 'Categoria', 'Color', 'Talla', 'Stock', 'Compra', 'Venta', 'Fecha']
-    
+
+  #Estilo y colores en la tabla del inventario.
     st.markdown("""<style>
         table {width: 100%; border-collapse: collapse; font-family: sans-serif;}
-        th {background-color: #f0f2f6 !important; color: #31333f !important; padding: 12px !important;}
-        td {text-align: center !important; vertical-align: middle !important; padding: 8px !important; border-bottom: 1px solid #e6e9ef;}
-        tr:hover {background-color: #f8f9fb;}
+        
+        /* 1. Color de las cabeceras (Gris suave, no blanco) */
+        th {
+            background-color: #d1d5db !important; /* Un gris medio-claro (tipo Tailwind gray-300) */
+            color: #1f2937 !important;           /* Texto oscuro para contraste */
+            padding: 12px !important;
+            border: 1px solid #9ca3af;
+        }
+        
+        /* 2. Celdas normales */
+        td {
+            text-align: center !important; 
+            vertical-align: middle !important; 
+            padding: 8px !important; 
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        /* 3. Efecto de selección al pasar el ratón (Hover) */
+        tr:hover {
+            background-color: rgba(156, 163, 175, 0.3) !important; /* Gris con transparencia */
+            transition: 0.2s; /* Para que el cambio sea suave */
+        }
     </style>""", unsafe_allow_html=True)
     
     st.markdown(df_html[cols_tab].to_html(escape=False, index=False), unsafe_allow_html=True)
