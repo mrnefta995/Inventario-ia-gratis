@@ -156,18 +156,20 @@ with tab2:
             use_container_width=True,
             hide_index=True
           )
-      
-          # --- Buscador Visual Individual ---
-          st.divider()
-          buscar_id = st.text_input("🔍 Escribe un ID para ver la foto en grande")
-          if buscar_id:
-              resultado = df_ver[df_ver['ID'].astype(str) == buscar_id]
-              if not resultado.empty:
-                  url_grande = resultado['Image_Ref'].values[0]
-                  if "http" in str(url_grande):
-                      st.image(url_grande, caption=f"Referencia: {buscar_id}", width=400)
-                  else:
-                      st.warning("Este ID no tiene una imagen válida guardada.")
+
+          # 3. Buscador para ver la foto en GRANDE (Alineado correctamente)
+        st.divider()
+        buscar_id = st.text_input("🔍 Escribe un ID para ver la foto en grande")
+        
+        if buscar_id:
+            resultado = df_ver[df_ver['ID'].astype(str) == buscar_id]
+            if not resultado.empty:
+                url_grande = resultado['Image_Ref'].values[0]
+                if "http" in str(url_grande):
+                    st.image(url_grande, caption=f"Referencia: {buscar_id}", width=300)
+                else:
+                    st.warning("Este ID no tiene una imagen válida.")
+          
 
       else:
           st.info("Aún no hay prendas registradas.")
