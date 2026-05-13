@@ -79,18 +79,38 @@ with tab1:
 
         if archivo_foto is not None:
             # Análisis de IA
+            # --- Dentro del bloque de análisis de IA ---
             if 'datos_ia' not in st.session_state:
                 with st.spinner("🤖 IA Analizando prenda..."):
-                    res = model.generate_content(["Analiza: CATEGORIA / COLOR", Image.open(archivo_foto)])
+                    imagen_pil = Image.open(archivo_foto)
+                    
+                    # PROMPT REFORZADO: Instrucciones más severas para la IA
+                    prompt = """
+                    Analiza la prenda de la imagen. 
+                    Responde ESTRICTAMENTE con este formato, sin introducciones ni despedidas:
+                    CATEGORIA / COLOR
+                    Ejemplo: Camiseta de manga corta / Azul marino con logo blanco
+                    """
+                    
+                    respuesta = model.generate_content([prompt, imagen_pil])
+                    texto_ia = respuesta.text
+                    
+                    # LIMPIEZA ADICIONAL CON PYTHON (Para quitar asteriscos, etiquetas y frases basura)
                     try:
-                        parts = res.text.split("/")
-                        st.session_state.datos_ia = {"cat": parts[0].strip(), "color": parts[1].strip()}
+                        # Separamos por la barra diagonal
+                        partes = texto_ia.split("/")
+                        
+                        # Limpiamos cada parte de asteriscos (*), negritas (**) y etiquetas de texto
+                        cat_limpia = partes[0].replace("*", "").replace("CATEGORIA:", "").replace("Categoría:", "").strip()
+                        col_limpio = partes[1].replace("*", "").replace("COLOR:", "").replace("Color:", "").strip()
+                        
+                        st.session_state.datos_ia = {
+                            "cat": cat_limpia,
+                            "color": col_limpio
+                        }
                     except:
-                        st.session_state.datos_ia = {"cat": "", "color": ""}
-
-            cat_ia = st.session_state.datos_ia["cat"]
-            col_ia = st.session_state.datos_ia["color"]
-
+                        # Si la IA falla el formato, intentamos rescatar lo que sea o dejar vacío
+                        st.session_state.datos_ia = {"cat": "Error de formato", "color": "Error de formato"}
             # Búsqueda de coincidencias
             exacto = df_inventario[(df_inventario["Categoria"].str.lower() == cat_ia.lower()) & (df_inventario["Color"].str.lower() == col_ia.lower())]
             parecido = df_inventario[(df_inventario["Categoria"].str.lower() == cat_ia.lower()) & (df_inventario["Color"].str.lower() != col_ia.lower())]
