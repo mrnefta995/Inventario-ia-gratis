@@ -219,10 +219,7 @@ with tab2:
         # Botón opcional para refrescar si haces cambios manuales en el Sheets
         if st.button("🔄 Actualizar lista"):
             st.rerun()
-        # --- Cálculo rápido de inversión ---
-        total_inv = (df_ver["Compra"] * df_ver["Stock"]).sum()
-        st.divider()
-        st.metric("Inversión Total en Almacén", f"{total_inv:,.2f} €")
+        
         
   # --- SECCIÓN VISUAL: DISTRIBUCIÓN DEL GASTO ---
         st.divider()
@@ -261,6 +258,12 @@ with tab2:
             hide_index=True
         )
 
+        # --- Cálculo rápido de inversión ---
+        total_inv = (df_ver["Compra"] * df_ver["Stock"]).sum()
+        st.divider()
+        st.metric("Inversión Total en Almacén", f"{total_inv:,.2f} €")
+
+      
         # 3. BOTÓN DE DESCARGA (Exportar)
         st.divider()
         csv = df_ver.to_csv(index=False).encode('utf-8')
