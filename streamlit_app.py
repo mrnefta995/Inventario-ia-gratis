@@ -109,23 +109,33 @@ with tab1:
                 conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_f)
                 st.session_state.modo_registro = None
                 st.rerun()
-
-# --- TAB 2: INVENTARIO ---
+#Pestaña 2 Inventario y control
 with tab2:
+    # --- 1. PREPARACIÓN DE DATOS (ESTO DEBE IR PRIMERO) ---
+    bus = st.text_input("🔍 Buscar por ID, Categoría o Color", key="buscador_inv").lower()
+    
+    # Creamos df_ver aquí para que esté disponible para todo lo que viene debajo
+    df_ver = df_inventario.copy()
+    if bus:
+        df_ver = df_ver[df_ver.apply(lambda r: bus in str(r.values).lower(), axis=1)]
 
-    # Título y Botón de Gestión en la misma línea para simetría
+    # --- 2. TÍTULO Y BOTÓN DE GESTIÓN (SIMETRÍA) ---
     col_t1, col_t2 = st.columns([3, 1])
     with col_t1:
         st.subheader("📋 Control de Stock Visual")
     with col_t2:
-        # Usamos un expander como "menú desplegable" de herramientas
+        # Ahora sel_id no dará error porque df_ver ya existe arriba
         gestion_abierta = st.expander("🛠️ Gestionar Fichas", expanded=False)
 
     with gestion_abierta:
         st.markdown("### Editar o Eliminar Artículos")
-        # Selección de ID
-        sel_id = st.selectbox("Selecciona el ID a modificar:", ["-- Elegir --"] + df_ver["ID"].astype(str).tolist(), key="selector_editar")
-
+        sel_id = st.selectbox(
+            "Selecciona el ID a modificar:", 
+            ["-- Elegir --"] + df_ver["ID"].astype(str).tolist(), 
+            key="selector_editar"
+        )
+        
+        # ... (aquí sigue tu código del formulario de edición que ya tienes)
         if sel_id != "-- Elegir --":
             # Obtener datos actuales
             idx_match = df_inventario.index[df_inventario['ID'].astype(str) == sel_id].tolist()[0]
