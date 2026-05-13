@@ -188,26 +188,26 @@ with tab2:
             item_index = df_ver.index[df_ver['ID'].astype(str) == seleccion].tolist()
             datos = df_ver.loc[item_index]
 
-            col_img, col_edit = st.columns([1, 2])# Damos un poco más de espacio al editor
-
+                        col_img, col_edit = st.columns([1, 2]) # Damos un poco más de espacio al formulario
 
             with col_img:
-                st.image(datos["Image_Ref"].values[0], caption=f"ID Actual: {seleccion}", use_container_width=True)
-                st.caption(f"📅 Fecha: {datos['Fecha'].values[0]}")
+                st.image(datos["Image_Ref"].values[0], caption="Foto Actual", use_container_width=True)
+                
                 # SUSTITUIMOS EL CHECKBOX POR UN TOGGLE MÁS MODERNO
                 habilitar_cambio = st.toggle("🔄 Actualizar fotografía", help="Activa esta opción para subir una nueva imagen y reemplazar la actual.")
                 
                 nueva_foto_archivo = None
-                if cambiar:
-                    nueva_foto_archivo = st.file_uploader("Sube la nueva foto", type=['jpg', 'jpeg', 'png'], key="update_uploader")
+                if habilitar_cambio:
+                    st.info("Selecciona la nueva imagen debajo:")
+                    nueva_foto_archivo = st.file_uploader("Subir nuevo archivo", type=['jpg', 'jpeg', 'png'], key="update_uploader")
                     if nueva_foto_archivo:
-                        st.image(nueva_foto_archivo, caption="Previsualización nueva", width=150)
-
+                        st.image(nueva_foto_archivo, caption="Nueva previsualización", width=150)
 
             with col_edit:
-                with st.form("editor_completo_v2"):
-                    st.write(f"📝 Edición Total: **{seleccion}**")
+                with st.form("editor_maestro_v3"):
+                    st.write(f"📝 **Ficha de producto:** {seleccion}")
                     
+                    # Campos de edición (ID, Categoría, Talla, etc.)
                     nuevo_id = st.text_input("ID Producto", value=str(datos["ID"].values[0]))
                     e_cat = st.text_input("Categoría", value=str(datos["Categoria"].values[0]))
                     
@@ -215,55 +215,57 @@ with tab2:
                     with c1:
                         e_talla = st.text_input("Talla", value=str(datos["Talla"].values[0]))
                         e_compra = st.number_input("Precio Compra (€)", value=float(datos["Compra"].values[0]), format="%.2f")
-                        e_stock = st.number_input("Unidades en Stock", value=int(datos["Stock"].values[0]), min_value=0)
+                        e_stock = st.number_input("Stock", value=int(datos["Stock"].values[0]), min_value=0)
                     with c2:
                         e_color = st.text_input("Color", value=str(datos["Color"].values[0]))
                         e_venta = st.number_input("Precio Venta (€)", value=float(datos["Venta"].values[0]), format="%.2f")
                         e_fecha = st.text_input("Fecha", value=str(datos["Fecha"].values[0]))
 
                     st.write("---")
-                    btn_col1, btn_col2 = st.columns(2)
-                    guardar_seguir = btn_col1.form_submit_button("💾 Guardar y Seguir")
-                    guardar_salir = btn_col2.form_submit_button("🚪 Guardar y Salir")
+                    c_btn1, c_btn2 = st.columns(2)
+                    guardar_seguir = c_btn1.form_submit_button("💾 Guardar y Seguir")
+                    guardar_salir = c_btn2.form_submit_button("🚪 Guardar y Salir")
 
-               # AL FINAL, EN EL GUARDADO:
+                # LÓGICA DE GUARDADO (Dentro del bloque col_edit pero fuera del form)
                 if guardar_seguir or guardar_salir:
                     try:
-                        # 1. Mantener la URL vieja por defecto
+                        # 1. URL por defecto es la que ya existe
                         url_final_foto = datos["Image_Ref"].values[0]
                         
-                        # 2. Si el interruptor está activo Y hay un archivo, subimos a Cloudinary
-                        if cambiar and nueva_foto_archivo is not None:
-                            with st.spinner("Subiendo nueva imagen..."):
-                                # Opcional: usamos el ID como nombre de archivo en Cloudinary
+                        # 2. Si el toggle está ON y hay archivo, subimos a Cloudinary
+                        if habilitar_cambio and nueva_foto_archivo is not None:
+                            with st.spinner("Subiendo nueva imagen a la nube..."):
                                 res_subida = cloudinary.uploader.upload(
                                     nueva_foto_archivo.getvalue(), 
                                     folder="inventario",
-                                    public_id=f"foto_{nuevo_id}" # Ordena tus fotos por ID
+                                    public_id=f"foto_{nuevo_id}"
                                 )
                                 url_final_foto = res_subida['secure_url']
 
-                        # 3. Actualizamos el DataFrame (incluyendo la foto)
+                        # 3. Actualizamos el DataFrame
                         df_ver.loc[item_index, "ID"] = nuevo_id
                         df_ver.loc[item_index, "Categoria"] = e_cat
-                        df_ver.loc[item_index, "Fecha"] = e_fecha
                         df_ver.loc[item_index, "Talla"] = e_talla
                         df_ver.loc[item_index, "Color"] = e_color
                         df_ver.loc[item_index, "Compra"] = e_compra
                         df_ver.loc[item_index, "Venta"] = e_venta
                         df_ver.loc[item_index, "Stock"] = e_stock
+                        df_ver.loc[item_index, "Fecha"] = e_fecha
                         df_ver.loc[item_index, "Image_Ref"] = url_final_foto
                         
                         conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_ver)
                         st.success("✅ Cambios e imagen actualizados")
                         
+                        # Gestión de sesión para que no se cierre si no queremos
                         if guardar_salir:
                             st.session_state.prenda_seleccionada = "-- Elige un ID --"
                         else:
                             st.session_state.prenda_seleccionada = nuevo_id
+                        
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Error técnico: {e}")
+
 
                 # BOTÓN ELIMINAR
                 if st.button("🗑️ ELIMINAR PRENDA PERMANENTEMENTE", type="primary", use_container_width=True):
