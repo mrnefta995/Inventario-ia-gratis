@@ -188,7 +188,7 @@ with tab2:
             item_index = df_ver.index[df_ver['ID'].astype(str) == seleccion].tolist()
             datos = df_ver.loc[item_index]
 
-                        col_img, col_edit = st.columns([1, 2]) # Damos un poco más de espacio al formulario
+            col_img, col_edit = st.columns([1, 2]) # Damos un poco más de espacio al formulario
 
             with col_img:
                 st.image(datos["Image_Ref"].values[0], caption="Foto Actual", use_container_width=True)
