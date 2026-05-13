@@ -19,6 +19,9 @@ genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 # Usamos el modelo preview que te funciona
 model = genai.GenerativeModel('gemini-3-flash-preview') 
 conn = st.connection("gsheets", type=GSheetsConnection)
+# --- CONFIGURACIÓN DE SEGURIDAD (Necesaria para HTML) ---
+# Esto permite que st.markdown y st.dataframe rendericen HTML
+st.set_option('deprecation.showPyplotGlobalUse', False) # Opcional, pero bueno tenerlo
 
 st.set_page_config(page_title="Almacén IA Pro", layout="wide")
 st.title("👕 Gestor de Inventario con Fecha")
