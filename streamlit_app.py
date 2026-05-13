@@ -176,9 +176,9 @@ with tab2:
         st.divider()
         st.metric("Inversión Total en Almacén", f"{total_inv:,.2f} €")
         
-      else:
-          st.info("El inventario está vacío. Registra tu primera prenda.")
-          st.info("Aún no hay prendas registradas.")
+    else:
+        st.info("El inventario está vacío. Registra tu primera prenda.")
+        st.info("Aún no hay prendas registradas.")
 
     # Botón para descargar el inventario en formato CSV
     csv = df_ver.to_csv(index=False).encode('utf-8')
