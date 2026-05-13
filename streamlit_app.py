@@ -128,24 +128,7 @@ with tab1:
 
 # --- TAB 2: INVENTARIO (REESTRUCTURADO) ---
 with tab2:
-    # --- 1. FILA DE CONTROLES (Buscador a la izquierda, Mostrar a la derecha) ---
-    col_bus, col_pag = st.columns([4, 1])
-
-    with col_bus:
-        bus = st.text_input("🔍 Filtrar inventario por ID, Categoría o Color", key="buscador_principal_tab2").lower()
-
-    with col_pag:
-        # He cambiado la key a "pag_limit_final" para evitar el error de duplicado
-        items_pag = st.selectbox("Mostrar:", [20, 50, 100], index=0, key="pag_limit_final")
-
-    # --- 2. PREPARACIÓN DE DATOS FILTRADOS ---
-    df_ver = df_inventario.copy()
-    if bus:
-        df_ver = df_ver[df_ver.apply(lambda r: bus in str(r.values).lower(), axis=1)]
-    
-    total_items = len(df_ver)
-
-    # 3. Cabecera Simétrica (Título y Gestión)
+    #  Cabecera Simétrica (Título y Gestión)
     col_t1, col_t2 = st.columns([3, 1])
     with col_t1:
         st.subheader("📋 Control de Stock Visual")
@@ -200,9 +183,22 @@ with tab2:
 
     # 4. Configuración de Paginación
     st.write("---")
-    col_v1, col_v2 = st.columns([3, 1])
-    with col_v2:
-        items_pag = st.selectbox("Mostrar:", [20, 50, 100], index=0, key="pag_limit")
+    # --- FILA DE CONTROLES (Buscador a la izquierda, Mostrar a la derecha) ---
+    col_bus, col_pag = st.columns([4, 1])
+
+    with col_bus:
+        bus = st.text_input("🔍 Filtrar inventario por ID, Categoría o Color", key="buscador_principal_tab2").lower()
+
+    with col_pag:
+        # He cambiado la key a "pag_limit_final" para evitar el error de duplicado
+        items_pag = st.selectbox("Mostrar:", [20, 50, 100], index=0, key="pag_limit_final")
+
+    # ---  PREPARACIÓN DE DATOS FILTRADOS ---
+    df_ver = df_inventario.copy()
+    if bus:
+        df_ver = df_ver[df_ver.apply(lambda r: bus in str(r.values).lower(), axis=1)]
+    
+    total_items = len(df_ver)
 
     num_pags = (total_items // items_pag) + (1 if total_items % items_pag > 0 else 0)
     if 'pag_act' not in st.session_state: st.session_state.pag_act = 1
