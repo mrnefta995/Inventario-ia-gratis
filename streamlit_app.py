@@ -114,11 +114,65 @@ with tab1:
 with tab2:
     st.subheader("📋 Control de Stock Visual")
     
-    bus = st.text_input("🔍 Buscar por ID, Categoría o Color").lower()
+    # --- BUSCADOR Y SELECTOR DE TAMAÑO ---
+    c_bus, c_pag = st.columns([4, 1])
+    
+    with c_bus:
+        bus = st.text_input("🔍 Buscar por ID, Categoría o Color", key="buscador_tab2").lower()
+        
+    with c_pag:
+        items_por_pagina = st.selectbox("Mostrar:", [20, 50, 100], index=0)
+
+# --- LÓGICA DE PAGINACIÓN ---
+    num_paginas = (total_items // items_por_pagina) + (1 if total_items % items_por_pagina > 0 else 0)
+    
+    # Inicializar estado de página si no existe
+    if 'pagina_actual' not in st.session_state:
+        st.session_state.pagina_actual = 1
+
+    # Asegurar que la página actual no exceda el total si el filtro cambia
+    if st.session_state.pagina_actual > num_paginas:
+        st.session_state.pagina_actual = max(1, num_paginas)
+
+    # Calcular índices de los artículos a mostrar
+    inicio = (st.session_state.pagina_actual - 1) * items_por_pagina
+    fin = inicio + items_por_pagina
+    df_pagina = df_ver.iloc[inicio:fin]
+
+    # --- RENDERIZADO DE LA TABLA (Con df_pagina) ---
+    df_html = df_pagina.copy()
+    
+    # (Aquí van tus líneas de formato que ya tienes: Vista, Compra, Venta...)
+    df_html['Vista'] = df_html['Image_Ref'].apply(lambda x: f'<a href="{x}" target="_blank"><img src="{x}" height="50px" style="border-radius:5px; cursor:zoom-in;"></a>')
+    df_html['Compra'] = df_html['Compra'].apply(lambda x: f"{x:,.2f} €")
+    df_html['Venta'] = df_html['Venta'].apply(lambda x: f"{x:,.2f} €")
+
+    # Mostrar tabla (El bloque st.markdown del CSS y el to_html se quedan igual)
+    st.markdown(df_html[['Vista', 'ID', 'Categoria', 'Color', 'Talla', 'Stock', 'Compra', 'Venta', 'Fecha']].to_html(escape=False, index=False), unsafe_allow_html=True)
+
+    # --- BOTONES DE NAVEGACIÓN (Debajo de la tabla) ---
+    st.write("") # Espaciado
+    col_prev, col_num, col_next = st.columns([1, 2, 1])
+    
+    with col_prev:
+        if st.button("⬅️ Anterior", disabled=(st.session_state.pagina_actual <= 1), use_container_width=True):
+            st.session_state.pagina_actual -= 1
+            st.rerun()
+            
+    with col_num:
+        st.markdown(f"<p style='text-align: center;'>Página <b>{st.session_state.pagina_actual}</b> de {max(1, num_paginas)}</p>", unsafe_allow_html=True)
+        
+    with col_next:
+        if st.button("Siguiente ➡️", disabled=(st.session_state.pagina_actual >= num_paginas), use_container_width=True):
+            st.session_state.pagina_actual += 1
+            st.rerun()
+
+    # Filtrado de datos
     df_ver = df_inventario.copy()
     if bus:
         df_ver = df_ver[df_ver.apply(lambda r: bus in str(r.values).lower(), axis=1)]
 
+    total_items = len(df_ver)
     # --- MEJORAS DE FORMATO Y CLIC EN IMAGEN ---
     df_html = df_ver.copy()
     
