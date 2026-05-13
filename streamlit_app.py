@@ -138,12 +138,79 @@ with tab2:
     with col_gest:
         exp_gest = st.expander("🛠️ Gestionar Fichas", expanded=False)
         with exp_gest:
-            sel_id = st.selectbox("ID a editar:", ["-- Elegir --"] + df_ver["ID"].astype(str).tolist(), key="editor_id")
-            if sel_id != "-- Elegir --":
-                # (Aquí iría tu formulario de edición que ya tienes configurado)
-                st.info(f"Editando ID: {sel_id}")
-                # [Inserta aquí tu bloque st.form de edición anterior si lo deseas]
+            st.markdown("### Editar o Eliminar")
+            # El selector de ID
+            sel_id = st.selectbox(
+                "Selecciona el ID a modificar:", 
+                ["-- Elegir --"] + df_ver["ID"].astype(str).tolist(), 
+                key="editor_id_final"
+            )
 
+            # Si el usuario elige un ID, mostramos los campos para editar
+            if sel_id != "-- Elegir --":
+                # 1. Buscamos los datos actuales de ese ID
+                idx_match = df_inventario.index[df_inventario['ID'].astype(str) == sel_id].tolist()[0]
+                datos_p = df_inventario.loc[idx_match]
+                
+                # 2. Creamos un formulario para que los cambios se envíen juntos
+                with st.form("form_edicion_dinamico"):
+                    col_ed_img, col_ed_txt = st.columns([1, 2])
+                    
+                    with col_ed_img:
+                        st.image(datos_p["Image_Ref"], caption="Foto actual", use_container_width=True)
+                        nueva_foto = st.file_uploader("Cambiar foto", type=['jpg', 'png', 'jpeg'])
+                    
+                    with col_ed_txt:
+                        # Rellenamos los campos con el valor actual (value=...)
+                        ed_id = st.text_input("ID Artículo", value=str(datos_p["ID"]))
+                        ed_cat = st.text_input("Categoría", value=str(datos_p["Categoria"]))
+                        
+                        c_extra1, c_extra2 = st.columns(2)
+                        ed_talla = c_extra1.text_input("Talla", value=str(datos_p["Talla"]))
+                        ed_color = c_extra2.text_input("Color", value=str(datos_p["Color"]))
+                        
+                        ed_stock = c_extra1.number_input("Stock", value=int(datos_p["Stock"]))
+                        ed_compra = c_extra2.number_input("Precio Compra (€)", value=float(datos_p["Compra"]))
+                        
+                        ed_venta = c_extra1.number_input("Precio Venta (€)", value=float(datos_p["Venta"]))
+                        ed_fecha = c_extra2.text_input("Fecha", value=str(datos_p["Fecha"]))
+
+                    # 3. Botones de acción
+                    st.write("")
+                    b_col1, b_col2, b_col3 = st.columns(3)
+                    
+                    # ACCIÓN: SOBREESCRIBIR
+                    if b_col1.form_submit_button("♻️ Sobreescribir"):
+                        url_final = datos_p["Image_Ref"]
+                        if nueva_foto:
+                            res = cloudinary.uploader.upload(nueva_foto.getvalue(), folder="inventario", public_id=f"foto_{ed_id}")
+                            url_final = res['secure_url']
+                        
+                        # Actualizamos la fila en el DataFrame
+                        df_inventario.loc[idx_match] = [ed_id, ed_cat, ed_fecha, ed_talla, ed_color, ed_compra, ed_venta, ed_stock, url_final]
+                        conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_inventario)
+                        st.success("✅ ¡Actualizado!")
+                        st.rerun()
+
+                    # ACCIÓN: COPIA (V1)
+                    if b_col2.form_submit_button("📑 Copia v1"):
+                        nuevo_id_v = f"{ed_id}_v1"
+                        nueva_fila = pd.DataFrame([{
+                            "ID": nuevo_id_v, "Categoria": ed_cat, "Fecha": ed_fecha, 
+                            "Talla": ed_talla, "Color": ed_color, "Compra": ed_compra, 
+                            "Venta": ed_venta, "Stock": ed_stock, "Image_Ref": datos_p["Image_Ref"]
+                        }])
+                        df_updated = pd.concat([df_inventario, nueva_fila], ignore_index=True)
+                        conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_updated)
+                        st.success(f"✅ Creado: {nuevo_id_v}")
+                        st.rerun()
+
+                    # ACCIÓN: ELIMINAR
+                    if b_col3.form_submit_button("🗑️ Eliminar", type="primary"):
+                        df_del = df_inventario.drop(idx_match)
+                        conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_del)
+                        st.warning("⚠️ Artículo eliminado.")
+                        st.rerun()
     # --- 3. FILA DE CONTROLES: BUSCADOR Y MOSTRAR ---
     col_bus, col_pag_limit = st.columns([4, 1])
 
