@@ -223,7 +223,44 @@ with tab2:
         total_inv = (df_ver["Compra"] * df_ver["Stock"]).sum()
         st.divider()
         st.metric("Inversión Total en Almacén", f"{total_inv:,.2f} €")
-      
+        
+  # --- SECCIÓN VISUAL: DISTRIBUCIÓN DEL GASTO ---
+        st.divider()
+        st.subheader("📊 Distribución de la Inversión")
+
+        # Calculamos el gasto por fila y luego agrupamos por categoría
+        df_ver["Gasto_Total"] = df_ver["Compra"] * df_ver["Stock"]
+        df_gastos = df_ver.groupby("Categoria")["Gasto_Total"].sum().reset_index()
+
+        # Creamos el gráfico de "quesito"
+        import plotly.express as px
+        
+        fig = px.pie(
+            df_gastos, 
+            values='Gasto_Total', 
+            names='Categoria',
+            hole=0.4, # Lo convierte en un gráfico de "donut" que es más moderno
+            color_discrete_sequence=px.colors.qualitative.Pastel
+        )
+
+        # Configuramos para que muestre el valor en euros y el porcentaje
+        fig.update_traces(
+            textinfo='percent+label',
+            hovertemplate="Categoría: %{label}<br>Inversión: %{value:.2f} €<br>Porcentaje: %{percent}"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Una pequeña tabla resumen al lado o debajo
+        st.write("💰 **Resumen de inversión por tipo:**")
+        st.dataframe(
+            df_gastos.sort_values(by="Gasto_Total", ascending=False),
+            column_config={
+                "Gasto_Total": st.column_config.NumberColumn("Inversión Total", format="%.2f €")
+            },
+            hide_index=True
+        )
+
         # 3. BOTÓN DE DESCARGA (Exportar)
         st.divider()
         csv = df_ver.to_csv(index=False).encode('utf-8')
