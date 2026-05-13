@@ -164,17 +164,18 @@ with tab2:
         if buscar_id:
             resultado = df_ver[df_ver['ID'].astype(str) == buscar_id]
             if not resultado.empty:
-                url_grande = resultado['Image_Ref'].values[0]
-                if "http" in str(url_grande):
-                    st.image(url_grande, caption=f"Referencia: {buscar_id}", width=300)
+                # Extraemos el primer link de la lista
+                url_lista = resultado['Image_Ref'].tolist()
+                url_final = url_lista[0]
+                
+                if "http" in str(url_final):
+                    st.image(url_final, caption=f"Referencia: {buscar_id}", width=300)
                 else:
                     st.warning("Este ID no tiene una imagen válida.")
-              else:
+            else:
                 st.error("ID no encontrado en el sistema.")
-          
-
-      else:
-          st.info("Aún no hay prendas registradas.")
+    else:
+        st.info("Aún no hay prendas registradas."
         # Botón opcional para refrescar si haces cambios manuales en el Sheets
         if st.button("🔄 Actualizar lista"):
             st.rerun()
