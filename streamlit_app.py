@@ -24,19 +24,21 @@ st.set_page_config(page_title="Almacén IA Pro", layout="wide")
 st.title("👕 Gestor de Inventario con Fecha")
 
 # 1. Define la URL de la imagen negra "Sin Imagen"
-#URL_SIN_IMAGEN = "https://res.cloudinary.com/daquubngv/image/upload/v1778660130/sin_imagen_zy2jcx.jpg"
+URL_SIN_IMAGEN = "https://res.cloudinary.com/daquubngv/image/upload/v1778660130/sin_imagen_zy2jcx.jpg"
+
+
 # Función de lectura sin caché para no perder datos
 def leer_datos():
     df = conn.read(spreadsheet=st.secrets["spreadsheet_url"], ttl=0)
     if df.empty:
         return pd.DataFrame(columns=["ID", "Categoria", "Fecha", "Talla", "Color", "Compra", "Venta", "Stock", "Image_Ref"])
     return df
+# Ejecutamos la función para que 'df_inventario' exista
+df_inventario = leer_datos()
 
 tab1, tab2 = st.tabs(["➕ Registrar Prenda", "📋 Ver Inventario"])
 
 
-# --- 1. ASEGÚRATE DE TENER ESTA LÍNEA AL PRINCIPIO DEL ARCHIVO (Línea 20 aprox) ---
-URL_SIN_IMAGEN = "https://res.cloudinary.com/demo/image/upload/w_500,h_500,c_fill,bg_black/co_white,l_text:Arial_50:SIN%20IMAGEN/fl_layer_apply/diagonal_line.png"
 
 # --- 2. SUSTITUYE TODO TU 'WITH TAB1:' POR ESTE BLOQUE ---
 with tab1:
