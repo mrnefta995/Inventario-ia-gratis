@@ -194,8 +194,8 @@ with tab2:
             with col_img:
                 st.image(datos["Image_Ref"].values[0], caption=f"ID Actual: {seleccion}", use_container_width=True)
                 st.caption(f"📅 Fecha: {datos['Fecha'].values[0]}")
-                # INTERRUPTOR PARA HABILITAR SUBIDA
-                cambiar = st.checkbox("🔄 Cambiar imagen")
+                # SUSTITUIMOS EL CHECKBOX POR UN TOGGLE MÁS MODERNO
+                habilitar_cambio = st.toggle("🔄 Actualizar fotografía", help="Activa esta opción para subir una nueva imagen y reemplazar la actual.")
                 
                 nueva_foto_archivo = None
                 if cambiar:
