@@ -146,39 +146,36 @@ with tab2:
 
     # --- 3. FILA DE CONTROLES: BUSCADOR Y MOSTRAR ---
     col_bus, col_pag_limit = st.columns([4, 1])
-    
+
     with col_bus:
-        # Al escribir aquí, Streamlit reinicia el script automáticamente
-        bus = st.text_input("🔍 Buscar por ID, Categoría o Color", key="bus_tab2_final").lower()
+        # Al escribir aquí, Streamlit detecta el cambio automáticamente
+        # Quitamos el .lower() inicial para procesar el ID puro primero
+        bus_id = st.text_input("🔍 Buscar por ID (Escribe un número para filtrar)", key="bus_id_dinamico")
     
     with col_pag_limit:
-        items_por_pag = st.selectbox("Mostrar:", [20, 50, 100], index=0, key="limite_vista")
+        items_por_pag = st.selectbox("Mostrar:", [20, 50, 100], index=0, key="limite_vista_final")
 
-    # --- FILTRADO EN TIEMPO REAL ---
-    # Creamos una copia para no alterar el inventario original
+    # --- 2. FILTRADO DINÁMICO EXCLUSIVO POR ID ---
     df_ver = df_inventario.copy()
 
-    if bus:
-        # Esta línea busca el texto en TODAS las columnas de cada fila
-        # Si coincide, la fila se mantiene; si no, desaparece al instante
-        mask = df_ver.apply(lambda row: bus in row.astype(str).str.lower().values, axis=1)
-        df_ver = df_ver[mask]
+    if bus_id:
+        # Convertimos la columna ID a string y buscamos si contiene el texto introducido
+        # Esto permite que si escribes "1", aparezcan el 1, 10, 11, 21, etc.
+        df_ver = df_ver[df_ver["ID"].astype(str).str.contains(bus_id)]
     
     total_items = len(df_ver)
 
-    # --- 4. LÓGICA DE PAGINACIÓN (Se adapta al filtro) ---
+    # --- 3. LÓGICA DE PAGINACIÓN ADAPTATIVA ---
     num_paginas = (total_items // items_por_pag) + (1 if total_items % items_por_pag > 0 else 0)
-    
-    # Si al filtrar quedan 0 resultados, evitamos errores
     if num_paginas == 0: num_paginas = 1
 
-    # IMPORTANTE: Si el usuario estaba en la página 5 y al filtrar solo queda 1 página,
-    # reseteamos a la página 1 para que no vea la tabla vacía.
+    # Reset automático de página si el filtro deja menos páginas de las que había
     if 'pag_actual' not in st.session_state or st.session_state.pag_actual > num_paginas:
         st.session_state.pag_actual = 1
 
     inicio = (st.session_state.pag_actual - 1) * items_por_pag
     df_pagina = df_ver.iloc[inicio : inicio + items_por_pag]
+    
   
     # --- 5. RENDERIZADO DE LA TABLA ---
     df_html = df_pagina.copy()
