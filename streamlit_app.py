@@ -128,13 +128,20 @@ with tab1:
 
 # --- TAB 2: INVENTARIO (REESTRUCTURADO) ---
 with tab2:
-    # 1. Buscador Principal
-    bus = st.text_input("🔍 Filtrar inventario por ID, Categoría o Color", key="buscador_principal_tab2").lower()
+    # --- 1. FILA DE CONTROLES (Buscador a la izquierda, Mostrar a la derecha) ---
+    col_bus, col_pag = st.columns([4, 1]) # El buscador ocupa 4 partes y el selector 1
 
-    # 2. Preparación de Datos Filtrados
+    with col_bus:
+        bus = st.text_input("🔍 Filtrar inventario por ID, Categoría o Color", key="buscador_principal_tab2").lower()
+
+    with col_pag:
+        items_pag = st.selectbox("Mostrar:", [20, 50, 100], index=0, key="pag_limit")
+
+    # --- 2. PREPARACIÓN DE DATOS FILTRADOS ---
     df_ver = df_inventario.copy()
     if bus:
         df_ver = df_ver[df_ver.apply(lambda r: bus in str(r.values).lower(), axis=1)]
+    
     total_items = len(df_ver)
 
     # 3. Cabecera Simétrica (Título y Gestión)
