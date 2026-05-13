@@ -157,14 +157,20 @@ with tab2:
             hide_index=True
           )
     
-        # 2. SELECTOR PARA GESTIÓN TOTAL Edicion (CRUD)
+        # 1. VISUALIZACIÓN GENERAL
+        st.dataframe(df_ver, use_container_width=True, hide_index=True)
+
         st.divider()
 
+        # 2. SELECTOR (Aquí se crea la variable 'seleccion')
+        st.subheader("🔍 Buscador y Editor de Productos")
+        opciones_id = df_ver.apply(lambda x: f"{x['ID']} - {x['Categoria']}", axis=1).tolist()
         
-        st.subheader("🛠️ Editor Maestro de Producto")
-        id_seleccionado = st.selectbox("Selecciona el ID que deseas modificar:", ["-- Seleccionar --"] + df_ver["ID"].tolist())
+        # DEFINIMOS LA VARIABLE
+        seleccion = st.selectbox("Selecciona una prenda:", ["-- Elige una prenda --"] + opciones_id)
 
-        if seleccion != "-- Seleccionar --":
+        # USAMOS LA VARIABLE (Debe estar al mismo nivel de sangría que el selectbox)
+        if seleccion != "-- Elige una prenda --":
             # 1. Identificar la prenda
             id_original = seleccion.split(" - ")[0] # Guardamos el ID de referencia
             item_index = df_ver.index[df_ver['ID'].astype(str) == id_original].tolist()
