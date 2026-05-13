@@ -146,30 +146,40 @@ with tab2:
 
     # --- 3. FILA DE CONTROLES: BUSCADOR Y MOSTRAR ---
     col_bus, col_pag_limit = st.columns([4, 1])
+    
     with col_bus:
+        # Al escribir aquí, Streamlit reinicia el script automáticamente
         bus = st.text_input("🔍 Buscar por ID, Categoría o Color", key="bus_tab2_final").lower()
+    
     with col_pag_limit:
         items_por_pag = st.selectbox("Mostrar:", [20, 50, 100], index=0, key="limite_vista")
 
-    # Aplicar filtro de búsqueda
+    # --- FILTRADO EN TIEMPO REAL ---
+    # Creamos una copia para no alterar el inventario original
+    df_ver = df_inventario.copy()
+
     if bus:
-        df_ver = df_ver[df_ver.apply(lambda r: bus in str(r.values).lower(), axis=1)]
+        # Esta línea busca el texto en TODAS las columnas de cada fila
+        # Si coincide, la fila se mantiene; si no, desaparece al instante
+        mask = df_ver.apply(lambda row: bus in row.astype(str).str.lower().values, axis=1)
+        df_ver = df_ver[mask]
     
     total_items = len(df_ver)
 
-    # --- 4. LÓGICA DE PAGINACIÓN ---
+    # --- 4. LÓGICA DE PAGINACIÓN (Se adapta al filtro) ---
     num_paginas = (total_items // items_por_pag) + (1 if total_items % items_por_pag > 0 else 0)
     
-    if 'pag_actual' not in st.session_state:
+    # Si al filtrar quedan 0 resultados, evitamos errores
+    if num_paginas == 0: num_paginas = 1
+
+    # IMPORTANTE: Si el usuario estaba en la página 5 y al filtrar solo queda 1 página,
+    # reseteamos a la página 1 para que no vea la tabla vacía.
+    if 'pag_actual' not in st.session_state or st.session_state.pag_actual > num_paginas:
         st.session_state.pag_actual = 1
-    
-    # Reset de página si el filtro reduce los resultados
-    if st.session_state.pag_actual > num_paginas:
-        st.session_state.pag_actual = max(1, num_paginas)
 
     inicio = (st.session_state.pag_actual - 1) * items_por_pag
     df_pagina = df_ver.iloc[inicio : inicio + items_por_pag]
-
+  
     # --- 5. RENDERIZADO DE LA TABLA ---
     df_html = df_pagina.copy()
     # Formateo visual (Imagen y Moneda)
