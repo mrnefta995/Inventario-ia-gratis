@@ -113,6 +113,73 @@ with tab1:
 # --- TAB 2: INVENTARIO ---
 with tab2:
     st.subheader("📋 Control de Stock Visual")
+
+    # Título y Botón de Gestión en la misma línea para simetría
+    col_t1, col_t2 = st.columns([3, 1])
+    with col_t1:
+        st.subheader("📋 Control de Stock Visual")
+    with col_t2:
+        # Usamos un expander como "menú desplegable" de herramientas
+        gestion_abierta = st.expander("🛠️ Gestionar Fichas", expanded=False)
+
+    with gestion_abierta:
+        st.markdown("### Editar o Eliminar Artículos")
+        # Selección de ID
+        sel_id = st.selectbox("Selecciona el ID a modificar:", ["-- Elegir --"] + df_ver["ID"].astype(str).tolist(), key="selector_editar")
+
+        if sel_id != "-- Elegir --":
+            # Obtener datos actuales
+            idx_match = df_inventario.index[df_inventario['ID'].astype(str) == sel_id].tolist()[0]
+            datos_p = df_inventario.loc[idx_match]
+            
+            with st.form("form_edicion_rapida", clear_on_submit=True):
+                c_ed1, c_ed2 = st.columns([1, 2])
+                with c_ed1:
+                    st.image(datos_p["Image_Ref"], caption="Imagen actual", use_container_width=True)
+                    nueva_f = st.file_uploader("Cambiar foto", type=['jpg','png'])
+                
+                with c_ed2:
+                    ed_id = st.text_input("ID Artículo", value=str(datos_p["ID"]))
+                    ed_cat = st.text_input("Categoría", value=str(datos_p["Categoria"]))
+                    cx1, cx2 = st.columns(2)
+                    ed_talla = cx1.text_input("Talla", value=str(datos_p["Talla"]))
+                    ed_color = cx2.text_input("Color", value=str(datos_p["Color"]))
+                    ed_stock = cx1.number_input("Stock", value=int(datos_p["Stock"]))
+                    ed_compra = cx2.number_input("Precio Compra", value=float(datos_p["Compra"]))
+                    ed_venta = cx1.number_input("Precio Venta", value=float(datos_p["Venta"]))
+                    ed_fecha = cx2.text_input("Fecha", value=str(datos_p["Fecha"]))
+
+                # Fila de acciones
+                col_btn1, col_btn2, col_btn3 = st.columns(3)
+                
+                # ACCIÓN 1: SOBREESCRIBIR
+                if col_btn1.form_submit_button("♻️ Sobreescribir"):
+                    url_dest = datos_p["Image_Ref"]
+                    if nueva_f:
+                        res = cloudinary.uploader.upload(nueva_f.getvalue(), folder="inventario", public_id=f"foto_{ed_id}")
+                        url_dest = res['secure_url']
+                    
+                    df_inventario.loc[idx_match] = [ed_id, ed_cat, ed_fecha, ed_talla, ed_color, ed_compra, ed_venta, ed_stock, url_dest]
+                    conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_inventario)
+                    st.success("✅ ¡Actualizado!")
+                    st.rerun()
+
+                # ACCIÓN 2: GUARDAR COMO VERSIÓN (v1, v2...)
+                if col_btn2.form_submit_button("📑 Guardar como copia"):
+                    nueva_id = f"{ed_id}_v1"
+                    url_dest = datos_p["Image_Ref"]
+                    nueva_fila = pd.DataFrame([{"ID": nueva_id, "Categoria": ed_cat, "Fecha": ed_fecha, "Talla": ed_talla, "Color": ed_color, "Compra": ed_compra, "Venta": ed_venta, "Stock": ed_stock, "Image_Ref": url_dest}])
+                    df_final = pd.concat([df_inventario, nueva_fila], ignore_index=True)
+                    conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_final)
+                    st.success(f"✅ Guardado como {nueva_id}")
+                    st.rerun()
+
+                # ACCIÓN 3: ELIMINAR
+                if col_btn3.form_submit_button("🗑️ Eliminar", type="primary"):
+                    df_del = df_inventario.drop(idx_match)
+                    conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_del)
+                    st.warning("Articulo eliminado.")
+                    st.rerun()
     
     # --- 1. BUSCADOR Y SELECTOR DE TAMAÑO ---
     c_bus, c_pag = st.columns([4, 1])
@@ -235,23 +302,31 @@ with tab2:
             conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_del)
             st.rerun()
 
-    # --- GRÁFICO CON LEYENDA ENMARCADA ---
+    # --- SECCIÓN DE ANÁLISIS VISUAL ---
     st.divider()
     if not df_inventario.empty:
-        df_inv = df_inventario.copy()
-        df_inv["Inversion"] = df_inv["Compra"] * df_inv["Stock"]
-        fig = px.pie(df_inv, values='Inversion', names='Categoria', hole=.4, 
-                     title="Distribución de la Inversión (€)",
-                     color_discrete_sequence=px.colors.qualitative.Safe)
+        st.markdown("### 📈 Análisis de Inversión por Categoría")
         
-        # Mejora visual de la leyenda (Recuadro y borde)
-        fig.update_layout(
-            legend=dict(
-                bgcolor="rgba(255, 255, 255, 0.8)", # Fondo blanco semitransparente
-                bordercolor="Black",                # Borde negro
-                borderwidth=1,                      # Grosor del borde
-                title_font_family="sans-serif",
-                font=dict(size=12, color="black")
+        # Contenedor con borde para la gráfica
+        with st.container(border=True):
+            df_inv = df_inventario.copy()
+            df_inv["Inversion"] = df_inv["Compra"] * df_inv["Stock"]
+            
+            # Usamos una paleta de colores más vibrante para distinguir categorías
+            fig = px.pie(df_inv, values='Inversion', names='Categoria', hole=.4,
+                         color_discrete_sequence=px.colors.qualitative.Bold)
+            
+            fig.update_layout(
+                margin=dict(t=20, b=20, l=20, r=20),
+                legend=dict(
+                    bgcolor="rgba(240, 242, 246, 0.9)", # Gris muy claro para combinar con tus cabeceras
+                    bordercolor="#9ca3af",
+                    borderwidth=1,
+                    font=dict(size=12)
+                )
             )
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            
+            # Mostrar etiquetas de porcentaje dentro de la gráfica
+            fig.update_traces(textposition='inside', textinfo='percent+label')
+            
+            st.plotly_chart(fig, use_container_width=True)
