@@ -4,3 +4,4 @@ pandas
 pillow
 st-gsheets-connection
 cloudinary
+plotly
