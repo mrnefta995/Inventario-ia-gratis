@@ -73,76 +73,100 @@ with tab1:
         nuevo_id = 1
 
     
+
     # --- OPERATIVA A: REGISTRO POR IMAGEN ---
     if st.session_state.modo_registro == "imagen":
-        st.subheader(f"Registro Inteligente (ID: {nuevo_id})")
+        st.subheader(f"Registro Inteligente")
         
-        # 1. Solo mostramos el cargador al principio
+        # Botón para volver atrás (Cancelar)
+        if st.button("⬅️ Volver a selección"):
+            st.session_state.modo_registro = None
+            st.rerun()
+
         archivo_foto = st.file_uploader(
             "Requerimientos: Máx. 200MB. Formatos: JPG, PNG, JPEG", 
             type=["jpg", "png", "jpeg"]
         )
 
-        # 2. La magia ocurre AQUÍ: Solo si hay un archivo, se activa el resto
         if archivo_foto is not None:
             imagen_pil = Image.open(archivo_foto)
             st.image(imagen_pil, caption="Imagen detectada", width=260)
             
-            # Ejecutamos la IA inmediatamente tras subir la foto
-            # Usamos st.cache_data o validamos si ya tenemos los datos para no repetir el análisis innecesariamente
-            with st.spinner("🤖 IA Analizando prenda..."):
-                prompt = "Analiza esta prenda y devuelve únicamente: CATEGORIA / COLOR"
-                respuesta = model.generate_content([prompt, imagen_pil])
-                try:
-                    datos_ia = respuesta.text.split("/")
-                    e_cat_ia = datos_ia[0].strip()
-                    e_color_ia = datos_ia[1].strip()
-                except:
-                    e_cat_ia, e_color_ia = "", ""
-                    st.warning("IA: No se pudo clasificar automáticamente.")
+            # Solo analizamos si no tenemos ya los datos en el session_state (para evitar bucles)
+            if 'datos_ia' not in st.session_state:
+                with st.spinner("🤖 IA Analizando prenda..."):
+                    prompt = "Analiza esta prenda y devuelve únicamente: CATEGORIA / COLOR"
+                    respuesta = model.generate_content([prompt, imagen_pil])
+                    try:
+                        res_split = respuesta.text.split("/")
+                        st.session_state.datos_ia = {
+                            "cat": res_split[0].strip(),
+                            "color": res_split[1].strip()
+                        }
+                    except:
+                        st.session_state.datos_ia = {"cat": "", "color": ""}
 
-            st.success("✅ Análisis completado. Revisa los datos abajo:")
+            # Lógica de sugerencia de duplicados
+            cat_detectada = st.session_state.datos_ia["cat"]
+            col_detectado = st.session_state.datos_ia["color"]
+            
+            posible_duplicado = df_inventario[
+                (df_inventario["Categoria"].str.lower() == cat_detectada.lower()) & 
+                (df_inventario["Color"].str.lower() == col_detectado.lower())
+            ]
 
-            # 3. El formulario de confirmación SOLO aparece cuando ya hay foto
+            if not posible_duplicado.empty:
+                st.warning(f"⚠️ Parece que ya tienes '{cat_detectada}' de color '{col_detectado}' en el inventario (ID: {posible_duplicado['ID'].values[0]}).")
+
+            # Formulario de registro
             with st.form("form_registro_imagen"):
-                c1, c2 = st.columns(2)
-                with c1:
-                    # Rellenamos con lo que dijo la IA, pero puedes editarlo
-                    e_cat = st.text_input("Categoría", value=e_cat_ia)
-                    e_talla = st.text_input("Talla", placeholder="Ej: M, L, 42...")
-                with c2:
-                    e_color = st.text_input("Color", value=e_color_ia)
+                col_id, col_fecha = st.columns(2)
+                with col_id:
+                    # Permitimos editar el ID sugerido
+                    e_id_edit = st.number_input("ID del Artículo", value=int(nuevo_id), step=1)
+                with col_fecha:
                     e_fecha = st.date_input("Fecha de Registro", datetime.now())
 
-                c3, c4, c5 = st.columns(3)
+                c1, c2 = st.columns(2)
+                with c1:
+                    e_cat = st.text_input("Categoría", value=cat_detectada)
+                    e_talla = st.text_input("Talla", placeholder="Ej: M, L, 42...")
+                with c2:
+                    e_color = st.text_input("Color", value=col_detectado)
+                    e_stock = st.number_input("Stock Inicial", min_value=1, step=1)
+
+                c3, c4 = st.columns(2)
                 with c3: e_compra = st.number_input("Precio Compra (€)", min_value=0.0, step=0.01)
                 with c4: e_venta = st.number_input("Precio Venta (€)", min_value=0.0, step=0.01)
-                with c5: e_stock = st.number_input("Stock Inicial", min_value=1, step=1)
 
                 if st.form_submit_button("💾 CONFIRMAR Y GUARDAR", use_container_width=True):
-                    with st.spinner("Subiendo a la nube..."):
-                        # Lógica de Cloudinary
-                        res_subida = cloudinary.uploader.upload(
-                            archivo_foto.getvalue(), 
-                            folder="inventario", 
-                            public_id=f"foto_{nuevo_id}"
-                        )
-                        url_final = res_subida['secure_url']
-                        
-                        # Guardar en Google Sheets
-                        nueva_fila = pd.DataFrame([{
-                            "ID": nuevo_id, "Categoria": e_cat, "Fecha": e_fecha.strftime('%Y-%m-%d'),
-                            "Talla": e_talla, "Color": e_color, "Compra": e_compra,
-                            "Venta": e_venta, "Stock": e_stock, "Image_Ref": url_final
-                        }])
-                        df_actualizado = pd.concat([df_inventario, nueva_fila], ignore_index=True)
-                        conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_actualizado)
-                        
-                        st.success(f"✅ ¡Prenda {nuevo_id} guardada!")
-                        st.rerun()
+                    if e_id_edit in df_inventario["ID"].values:
+                        st.error(f"El ID {e_id_edit} ya existe. Elige otro o modifícalo.")
+                    else:
+                        with st.spinner("Subiendo y guardando..."):
+                            res_subida = cloudinary.uploader.upload(
+                                archivo_foto.getvalue(), 
+                                folder="inventario", 
+                                public_id=f"foto_{e_id_edit}"
+                            )
+                            
+                            nueva_fila = pd.DataFrame([{
+                                "ID": e_id_edit, "Categoria": e_cat, "Fecha": e_fecha.strftime('%Y-%m-%d'),
+                                "Talla": e_talla, "Color": e_color, "Compra": e_compra,
+                                "Venta": e_venta, "Stock": e_stock, "Image_Ref": res_subida['secure_url']
+                            }])
+                            
+                            df_actualizado = pd.concat([df_inventario, nueva_fila], ignore_index=True)
+                            conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_actualizado)
+                            
+                            # LIMPIEZA PARA EVITAR BUCLES
+                            del st.session_state.datos_ia # Borramos los datos temporales
+                            st.session_state.modo_registro = None # Volvemos al menú principal
+                            st.success("¡Guardado correctamente!")
+                            st.rerun() # Recarga limpia
         else:
-            # Mensaje amigable cuando aún no han subido nada
-            st.info("Esperando imagen para iniciar el análisis...")
+            st.info("Esperando imagen...")
+
     # --- OPERATIVA B: REGISTRO MANUAL ---
     elif st.session_state.modo_registro == "manual":
         st.subheader(f"Entrada Manual (ID: {nuevo_id})")
