@@ -200,13 +200,6 @@ with tab2:
     
     total_items = len(df_ver)
 
-    num_pags = (total_items // items_pag) + (1 if total_items % items_pag > 0 else 0)
-    if 'pag_act' not in st.session_state: st.session_state.pag_act = 1
-    if st.session_state.pag_act > num_pags: st.session_state.pag_act = max(1, num_pags)
-
-    inicio = (st.session_state.pag_act - 1) * items_pag
-    df_pagina = df_ver.iloc[inicio:inicio + items_pag]
-
     # 5. Tabla HTML con Estilos
     df_html = df_pagina.copy()
     df_html['Vista'] = df_html['Image_Ref'].apply(lambda x: f'<a href="{x}" target="_blank"><img src="{x}" height="50px" style="border-radius:5px; cursor:zoom-in;"></a>')
