@@ -126,6 +126,10 @@ with tab2:
     df_ver = leer_datos()
     
     if not df_ver.empty:
+      # TRUCO: Limpiamos posibles espacios en los links que impiden que se vea la imagen
+        if "Image_Ref" in df_ver.columns:
+            df_ver["Image_Ref"] = df_ver["Image_Ref"].astype(str).str.strip()
+
         # Mostramos la tabla con configuración de columnas para los Euros
         st.dataframe(
             df_ver,
@@ -144,12 +148,29 @@ with tab2:
                     format="%.2f €"  # <--- Esto añade el formato Euro
                 ),
                 "Stock": st.column_config.NumberColumn("Unidades", format="%d uds"),
-                "Image_Ref": st.column_config.TextColumn("Vista Previa", 
-                    help="Foto almacenada en la nube")                                               
+                "Image_Ref": st.column_config.TextColumn("Vista Previa",
+                help="Foto de la prenda",
+                width="medium" # Le damos un tamaño medio para que se vea mejor
+                )                                               
             },
             use_container_width=True,
             hide_index=True
           )
+      
+          # --- Buscador Visual Individual ---
+          st.divider()
+          buscar_id = st.text_input("🔍 Escribe un ID para ver la foto en grande")
+          if buscar_id:
+              resultado = df_ver[df_ver['ID'].astype(str) == buscar_id]
+              if not resultado.empty:
+                  url_grande = resultado['Image_Ref'].values[0]
+                  if "http" in str(url_grande):
+                      st.image(url_grande, caption=f"Referencia: {buscar_id}", width=400)
+                  else:
+                      st.warning("Este ID no tiene una imagen válida guardada.")
+
+      else:
+          st.info("Aún no hay prendas registradas.")
         # Botón opcional para refrescar si haces cambios manuales en el Sheets
         if st.button("🔄 Actualizar lista"):
             st.rerun()
