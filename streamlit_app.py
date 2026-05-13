@@ -60,6 +60,17 @@ with tab1:
 
     st.divider()
 
+    # --- LÍNEA CRUCIAL: CÁLCULO DE NUEVO ID ---
+    # Esto debe estar fuera de los "if" de los modos para que siempre exista la variable
+    try:
+        ids_numericos = pd.to_numeric(df_inventario["ID"], errors='coerce').dropna()
+        if not ids_numericos.empty:
+            nuevo_id = int(ids_numericos.max()) + 1
+        else:
+            nuevo_id = 1
+    except Exception:
+        nuevo_id = 1
+      
     # --- OPERATIVA A: REGISTRO POR IMAGEN ---
     if st.session_state.modo_registro == "imagen":
         st.subheader("Registro Inteligente e Histórico")
