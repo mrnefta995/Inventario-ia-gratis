@@ -24,7 +24,7 @@ st.set_page_config(page_title="Almacén IA Pro", layout="wide")
 st.title("👕 Gestor de Inventario con Fecha")
 
 # 1. Define la URL de la imagen negra "Sin Imagen"
-URL_SIN_IMAGEN = "https://res.cloudinary.com/daquubngv/image/upload/v1778660130/sin_imagen_zy2jcx.jpg"
+#URL_SIN_IMAGEN = "https://res.cloudinary.com/daquubngv/image/upload/v1778660130/sin_imagen_zy2jcx.jpg"
 # Función de lectura sin caché para no perder datos
 def leer_datos():
     df = conn.read(spreadsheet=st.secrets["spreadsheet_url"], ttl=0)
@@ -34,87 +34,132 @@ def leer_datos():
 
 tab1, tab2 = st.tabs(["➕ Registrar Prenda", "📋 Ver Inventario"])
 
-# --- 2. SUSTITUYE TU TAB 1 ACTUAL (Desde la línea 60 aprox) POR ESTO ---
+
+# --- 1. ASEGÚRATE DE TENER ESTA LÍNEA AL PRINCIPIO DEL ARCHIVO (Línea 20 aprox) ---
+URL_SIN_IMAGEN = "https://res.cloudinary.com/demo/image/upload/w_500,h_500,c_fill,bg_black/co_white,l_text:Arial_50:SIN%20IMAGEN/fl_layer_apply/diagonal_line.png"
+
+# --- 2. SUSTITUYE TODO TU 'WITH TAB1:' POR ESTE BLOQUE ---
 with tab1:
-    st.header("Registrar Nueva Prenda")
+    st.header("Gestión de Inventario")
     
-    # El cargador de archivos ahora es opcional
-    archivo_foto = st.file_uploader("Sube la foto de la prenda (Opcional)", type=["jpg", "png", "jpeg"])
+    # Inicializar el estado del modo si no existe
+    if 'modo_registro' not in st.session_state:
+        st.session_state.modo_registro = None
 
-    # Inicializamos las variables vacías
-    e_cat = ""
-    e_color = ""
+    # Botones principales ocupando el ancho
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.button("📸 Registrar por Imagen", use_container_width=True):
+            st.session_state.modo_registro = "imagen"
+    with col_btn2:
+        if st.button("📝 Registrar Nuevo Artículo (Manual)", use_container_width=True):
+            st.session_state.modo_registro = "manual"
 
-    # LÓGICA INTELIGENTE:
-    if archivo_foto is not None:
-        # SI HAY FOTO -> PROCESA CON IA
-        imagen_pil = Image.open(archivo_foto)
-        st.image(imagen_pil, caption="Vista previa", width=200)
-        
-        with st.spinner("IA analizando la prenda..."):
-            prompt = "Analiza esta prenda y devuelve únicamente: CATEGORIA / COLOR"
-            # Asegúrate que el nombre de tu modelo sea el que configuraste arriba (model)
-            respuesta = model.generate_content([prompt, imagen_pil])
-            try:
-                datos_ia = respuesta.text.split("/")
-                e_cat = datos_ia[0].strip()
-                e_color = datos_ia[1].strip()
-            except:
-                st.warning("No pude extraer datos automáticamente. Por favor, rellena los campos.")
+    st.divider()
+
+    # --- CÁLCULO DE NUEVO ID (Basado en tu lógica actual) ---
+    if not df_inventario.empty:
+        nuevo_id = int(df_inventario["ID"].max()) + 1
     else:
-        # SI NO HAY FOTO -> PERMITE ENTRADA MANUAL
-        st.info("ℹ️ No se ha subido foto. Introduce los datos manualmente.")
-    
-    # CAMPOS DE ENTRADA (Se rellenan solos si hay IA, o los escribes tú si no la hay)
-    col1, col2 = st.columns(2)
-    with col1:
-        e_cat = st.text_input("Categoría", value=e_cat)
-    with col2:
-        e_color = st.text_input("Color", value=e_color)
+        nuevo_id = 1
 
-    # Resto de campos que ya tenías...
-    e_fecha = st.date_input("Fecha", datetime.now())
-    e_talla = st.selectbox("Talla", ["S", "M", "L", "XL", "Única"])
-    e_compra = st.number_input("Precio Compra", min_value=0.0, step=0.1)
-    e_venta = st.number_input("Precio Venta", min_value=0.0, step=0.1)
-    e_stock = st.number_input("Stock Inicial", min_value=1, step=1)
+    # --- OPERATIVA A: REGISTRO POR IMAGEN ---
+    if st.session_state.modo_registro == "imagen":
+        st.subheader(f"Registro Inteligente (ID: {nuevo_id})")
+        archivo_foto = st.file_uploader(
+            "Requerimientos: Máx. 200MB por archivo. Formatos: JPG, PNG, JPEG", 
+            type=["jpg", "png", "jpeg"]
+        )
 
-    if st.button("💾 Guardar en Inventario"):
-        with st.spinner("Registrando..."):
-            # LÓGICA DE IMAGEN FINAL
-            if archivo_foto is not None:
-                # Subir a Cloudinary
-                res_subida = cloudinary.uploader.upload(
-                    archivo_foto.getvalue(), 
-                    folder="inventario", 
-                    public_id=f"foto_{nuevo_id}"
-                )
-                url_final_foto = res_subida['secure_url']
-            else:
-                # Usar la imagen negra por defecto
-                url_final_foto = URL_SIN_IMAGEN
+        e_cat = ""
+        e_color = ""
 
-            # CREAR FILA Y SUBIR A GOOGLE SHEETS
-            # (Ajusta los nombres de tus variables si cambian en tu archivo)
-            nueva_fila = pd.DataFrame([{
-                "ID": nuevo_id,
-                "Categoria": e_cat,
-                "Fecha": e_fecha.strftime('%Y-%m-%d'),
-                "Talla": e_talla,
-                "Color": e_color,
-                "Compra": e_compra,
-                "Venta": e_venta,
-                "Stock": e_stock,
-                "Image_Ref": url_final_foto
-            }])
+        if archivo_foto:
+            imagen_pil = Image.open(archivo_foto)
+            st.image(imagen_pil, caption="Vista previa de la prenda", width=260)
             
-            # Unir con el dataframe actual y actualizar
-            df_actualizado = pd.concat([df_inventario, nueva_fila], ignore_index=True)
-            conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_actualizado)
-            
-            st.success(f"✅ Prenda {nuevo_id} guardada correctamente.")
-            st.rerun()
+            with st.spinner("IA analizando la prenda..."):
+                prompt = "Analiza esta prenda y devuelve únicamente: CATEGORIA / COLOR"
+                respuesta = model.generate_content([prompt, imagen_pil])
+                try:
+                    datos_ia = respuesta.text.split("/")
+                    e_cat = datos_ia[0].strip()
+                    e_color = datos_ia[1].strip()
+                except:
+                    st.warning("IA: No se pudo clasificar. Rellena los datos manualmente.")
+        
+        # Formulario de confirmación y datos extra
+        with st.form("form_registro_imagen"):
+            c1, c2 = st.columns(2)
+            with c1:
+                e_cat = st.text_input("Categoría", value=e_cat)
+                e_talla = st.text_input("Talla (Escribe la talla)", placeholder="Ej: M, L, 42...")
+            with c2:
+                e_color = st.text_input("Color", value=e_color)
+                e_fecha = st.date_input("Fecha de Registro", datetime.now())
 
+            c3, c4, c5 = st.columns(3)
+            with c3: e_compra = st.number_input("Precio Compra (€)", min_value=0.0, step=0.01)
+            with c4: e_venta = st.number_input("Precio Venta (€)", min_value=0.0, step=0.01)
+            with c5: e_stock = st.number_input("Stock Inicial", min_value=1, step=1)
+
+            if st.form_submit_button("💾 GUARDAR EN INVENTARIO", use_container_width=True):
+                if not e_cat:
+                    st.error("Por favor, indica al menos la categoría.")
+                elif archivo_foto is None:
+                    st.error("Debes subir una foto para este modo.")
+                else:
+                    with st.spinner("Subiendo a Cloudinary y registrando..."):
+                        # Subida a Cloudinary
+                        res_subida = cloudinary.uploader.upload(
+                            archivo_foto.getvalue(), 
+                            folder="inventario", 
+                            public_id=f"foto_{nuevo_id}"
+                        )
+                        url_final = res_subida['secure_url']
+                        
+                        # Registro en Sheets
+                        nueva_fila = pd.DataFrame([{
+                            "ID": nuevo_id, "Categoria": e_cat, "Fecha": e_fecha.strftime('%Y-%m-%d'),
+                            "Talla": e_talla, "Color": e_color, "Compra": e_compra,
+                            "Venta": e_venta, "Stock": e_stock, "Image_Ref": url_final
+                        }])
+                        df_actualizado = pd.concat([df_inventario, nueva_fila], ignore_index=True)
+                        conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_actualizado)
+                        st.success(f"✅ Prenda {nuevo_id} registrada con éxito.")
+                        st.rerun()
+
+    # --- OPERATIVA B: REGISTRO MANUAL ---
+    elif st.session_state.modo_registro == "manual":
+        st.subheader(f"Entrada Manual (ID: {nuevo_id})")
+        with st.form("form_registro_manual"):
+            c1, c2 = st.columns(2)
+            with c1:
+                e_cat = st.text_input("Categoría")
+                e_talla = st.text_input("Talla (Escribe la talla)", placeholder="Ej: Única, XL, 38...")
+            with c2:
+                e_color = st.text_input("Color")
+                e_fecha = st.date_input("Fecha de Registro", datetime.now())
+
+            c3, c4, c5 = st.columns(3)
+            with c3: e_compra = st.number_input("Precio Compra (€)", min_value=0.0, step=0.01)
+            with c4: e_venta = st.number_input("Precio Venta (€)", min_value=0.0, step=0.01)
+            with c5: e_stock = st.number_input("Stock Inicial", min_value=1, step=1)
+
+            if st.form_submit_button("💾 GUARDAR ARTÍCULO SIN FOTO", use_container_width=True):
+                if not e_cat:
+                    st.error("Por favor, indica al menos la categoría.")
+                else:
+                    with st.spinner("Registrando artículo..."):
+                        nueva_fila = pd.DataFrame([{
+                            "ID": nuevo_id, "Categoria": e_cat, "Fecha": e_fecha.strftime('%Y-%m-%d'),
+                            "Talla": e_talla, "Color": e_color, "Compra": e_compra,
+                            "Venta": e_venta, "Stock": e_stock, "Image_Ref": URL_SIN_IMAGEN
+                        }])
+                        df_actualizado = pd.concat([df_inventario, nueva_fila], ignore_index=True)
+                        conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_actualizado)
+                        st.success(f"✅ Prenda {nuevo_id} registrada sin imagen.")
+                        st.rerun()
 
 with tab2:
     st.subheader("📋 Control de Stock y Finanzas")
