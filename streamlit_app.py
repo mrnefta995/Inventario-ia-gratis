@@ -220,28 +220,31 @@ with tab2:
         if st.button("🔄 Actualizar lista"):
             st.rerun()
         
-        
-          # 3. SECCIÓN VISUAL: GRÁFICO Y TABLA RESUMEN CON TOTAL
+        # 2. SECCIÓN VISUAL (Aquí es donde calculamos sin guardar en el inventario)
         st.divider()
         st.subheader("📊 Análisis de Inversión por Categoría")
         
-        # Agrupamos por categoría y sumamos el gasto
-        df_gastos = df_ver.groupby("Categoria")["Total_Invertido"].sum().reset_index()
+        # Creamos una copia temporal solo para el gráfico
+        df_calculo = df_ver.copy()
+        df_calculo["Inversion_Temp"] = df_calculo["Compra"] * df_calculo["Stock"]
         
-        # --- CÁLCULO DE LA FILA TOTAL ---
-        total_suma = df_gastos["Total_Invertido"].sum()
-        fila_total = pd.DataFrame([{"Categoria": "TOTAL INVERTIDO EN ALMACÉN", "Total_Invertido": total_suma}])
+        # Agrupamos usando la columna temporal
+        df_gastos = df_calculo.groupby("Categoria")["Inversion_Temp"].sum().reset_index()
         
-        # Unimos la tabla de categorías con la fila del total
-        df_resumen_final = pd.concat([df_gastos.sort_values(by="Total_Invertido", ascending=False), fila_total], ignore_index=True)
+        # Fila de TOTAL
+        total_suma = df_gastos["Inversion_Temp"].sum()
+        fila_total = pd.DataFrame([{"Categoria": "TOTAL INVERTIDO EN ALMACÉN", "Inversion_Temp": total_suma}])
+        
+        # Tabla resumen final para mostrar
+        df_resumen_final = pd.concat([df_gastos.sort_values(by="Inversion_Temp", ascending=False), fila_total], ignore_index=True)
 
-        col_graf, col_tabla = st.columns([1.2, 1]) # El gráfico un poco más ancho que la tabla
+        col_graf, col_tabla = st.columns([1.2, 1])
 
         with col_graf:
             import plotly.express as px
             fig = px.pie(
                 df_gastos, 
-                values='Total_Invertido', 
+                values='Inversion_Temp', 
                 names='Categoria',
                 hole=0.5,
                 color_discrete_sequence=px.colors.qualitative.Pastel
@@ -255,7 +258,7 @@ with tab2:
                 df_resumen_final,
                 column_config={
                     "Categoria": st.column_config.TextColumn("Categoría / Concepto"),
-                    "Total_Invertido": st.column_config.NumberColumn("Inversión", format="%.2f €")
+                    "Inversion_Temp": st.column_config.NumberColumn("Inversión", format="%.2f €")
                 },
                 hide_index=True,
                 use_container_width=True
