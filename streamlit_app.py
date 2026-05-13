@@ -21,7 +21,9 @@ cloudinary.config(
 
 # --- 3. CONFIGURACIÓN DEL MODELO ---
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('gemini-3-flash-preview') 
+# 1. Definición de las dos vías
+model_flash = genai.GenerativeModel('gemini-3-flash-preview')
+model_pro = genai.GenerativeModel('gemini-3-pro') # Tu Plan B
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # URL de la imagen por defecto
@@ -68,27 +70,37 @@ with tab1:
     st.divider()
 
     if st.session_state.modo_registro == "imagen":
-        archivo_foto = st.file_uploader("Sube la foto de la prenda", type=["jpg", "png", "jpeg"])
+        archivo_foto = st.file_uploader("Sube la foto...", type=["jpg", "png", "jpeg"])
         
         if archivo_foto:
-            # 1. Aseguramos que existan variables de respaldo
             if 'datos_ia' not in st.session_state:
-                st.session_state.datos_ia = {"cat": "", "color": ""}
-                
-                with st.spinner("🤖 IA Analizando..."):
+                with st.spinner("🤖 Analizando prenda..."):
+                    # PEGA EL CÓDIGO DE CASCADA AQUÍ:
                     try:
+                        # Intento 1: Gemini 3 Flash
                         img_pil = Image.open(archivo_foto)
-                        img_pil.thumbnail((800, 800)) 
-                        prompt = "Analiza la prenda. Responde ESTRICTAMENTE: CATEGORIA / COLOR."
-                        resp = model.generate_content([prompt, img_pil])
+                        img_pil.thumbnail((800, 800))
+                        prompt = "Responde ESTRICTAMENTE: CATEGORIA / COLOR"
                         
+                        resp = model_flash.generate_content([prompt, img_pil])
                         p = resp.text.split("/")
                         st.session_state.datos_ia = {"cat": p[0].strip(), "color": p[1].strip()}
-                        st.toast("IA completada", icon="✅")
-                    except Exception as e:
-                        # Si falla la IA, no hacemos nada, dejamos los campos vacíos
-                        st.warning("⚠️ IA saturada. Por favor, rellena los datos manualmente.")
+                        st.toast("✅ Procesado con Flash", icon="⚡")
 
+                    except Exception as e:
+                        # Si falla el primero por cuota (Error 429)
+                        try:
+                            st.warning("⚠️ Flash saturado, activando Plan B (Gemini 3 Pro)...")
+                            resp = model_pro.generate_content([prompt, img_pil])
+                            p = resp.text.split("/")
+                            st.session_state.datos_ia = {"cat": p[0].strip(), "color": p[1].strip()}
+                            st.toast("🛡️ Resuelto por Gemini 3 Pro", icon="✅")
+                        
+                        except Exception as e2:
+                            # Si ambos fallan, activamos el modo manual
+                            st.error("❌ IAs saturadas. Por favor, rellena los datos a mano.")
+                            st.session_state.datos_ia = {"cat": "", "color": ""}
+                          
             # 2. Recuperamos lo que haya en el estado (venga de la IA o esté vacío)
             d_ia = st.session_state.datos_ia
             
