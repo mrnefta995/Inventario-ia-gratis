@@ -104,28 +104,37 @@ with tab1:
             parecido = df_inventario[(df_inventario["Categoria"].str.lower() == cat_ia.lower()) & 
                                      (df_inventario["Color"].str.lower() != col_ia.lower())]
 
-            # --- 3. ASIGNACIÓN SEGURA (SOLUCIÓN AL VALUEERROR) ---
-            # Valores por defecto (Seguros)
+            # --- 3. ASIGNACIÓN SEGURA (SOLUCIÓN DEFINITIVA AL VALUEERROR) ---
+            # 1. Definimos valores por defecto ultra-seguros
             id_sug = int(nuevo_id)
             talla_sug = ""
             compra_sug = 0.0
             venta_sug = 0.0
             art_previa = None
 
-            # Lógica jerárquica para extraer datos
+            # 2. Intentamos capturar la fila de datos si existe
             if not exacto.empty:
                 art_previa = exacto.iloc[0]
-                id_sug = int(art_previa['ID']) # Prioridad: ID existente si es igual
-                talla_sug = str(art_previa['Talla'])
-                compra_sug = float(art_previa['Compra'])
-                venta_sug = float(art_previa['Venta'])
             elif not parecido.empty:
                 art_previa = parecido.iloc[0]
-                # No cambiamos id_sug (se queda el nuevo_id), pero copiamos el resto
-                talla_sug = str(art_previa['Talla'])
-                compra_sug = float(art_previa['Compra'])
-                venta_sug = float(art_previa['Venta'])
 
+            # 3. Solo si art_previa existe y no es nula, extraemos sus valores
+            if art_previa is not None:
+                try:
+                    # Usamos pd.to_numeric para evitar errores de formato en el ID
+                    if not exacto.empty:
+                        id_sug = int(pd.to_numeric(art_previa['ID']))
+                    
+                    # Extraemos el resto de valores asegurando el tipo de dato
+                    talla_sug = str(art_previa['Talla']) if pd.notna(art_previa['Talla']) else ""
+                    compra_sug = float(pd.to_numeric(art_previa['Compra'], errors='coerce')) or 0.0
+                    venta_sug = float(pd.to_numeric(art_previa['Venta'], errors='coerce')) or 0.0
+                except Exception as e:
+                    # Si algo falla extrayendo datos, mantenemos los valores por defecto
+                    pass 
+
+            # A partir de aquí, el código sigue con el Panel Visual y el Formulario...
+          
             # 4. PANEL VISUAL (Cerrado por defecto)
             if art_previa is not None:
                 tipo_msj = "✅ COINCIDENCIA EXACTA" if not exacto.empty else "💡 PRENDA SIMILAR (OTRO COLOR)"
