@@ -157,8 +157,7 @@ with tab2:
             hide_index=True
           )
     
-        # 1. VISUALIZACIÓN GENERAL
-        st.dataframe(df_ver, use_container_width=True, hide_index=True)
+        
 
         st.divider()
 
