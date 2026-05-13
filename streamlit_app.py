@@ -156,24 +156,16 @@ with tab2:
             use_container_width=True,
             hide_index=True
           )
-
-          # 3. Buscador para ver la foto en GRANDE (Alineado correctamente)
         st.divider()
-        buscar_id = st.text_input("🔍 Escribe un ID para ver la foto en grande")
-          
+        buscar_id = st.text_input("🔍 Buscar ID para ver foto grande")
         if buscar_id:
-            resultado = df_ver[df_ver['ID'].astype(str) == buscar_id]
-            if not resultado.empty:
-                # Extraemos el primer link de la lista
-                url_lista = resultado['Image_Ref'].tolist()
-                url_final = url_lista[0]
-                
-                if "http" in str(url_final):
-                    st.image(url_final, caption=f"Referencia: {buscar_id}", width=300)
-                else:
-                    st.warning("Este ID no tiene una imagen válida.")
+            res = df_ver[df_ver['ID'].astype(str) == buscar_id]
+            if not res.empty:
+                url = res['Image_Ref'].values[0]
+                st.image(url, width=350, caption=f"ID: {buscar_id}")
             else:
-                st.error("ID no encontrado en el sistema.")
+                st.error("No se encontró el ID.")
+
         else:
             st.info("Aún no hay prendas registradas.")
         # Botón opcional para refrescar si haces cambios manuales en el Sheets
