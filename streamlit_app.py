@@ -119,31 +119,45 @@ with tab1:
                 # Botón de envío
                 enviar = st.form_submit_button("🚀 GUARDAR EN INVENTARIO")
 
+              
+                # --- Dentro del if enviar: del formulario ---
                 if enviar:
                     if not f_cat or not f_col:
                         st.error("Faltan Categoría o Color para guardar.")
                     else:
-                        with st.spinner("Subiendo datos..."):
-                            # Subida a Cloudinary
-                            res_c = cloudinary.uploader.upload(archivo_foto.getvalue(), folder="inventario", public_id=f"foto_{f_id}")
+                        with st.spinner("Subiendo datos y limpiando..."):
+                            # 1. Subida a Cloudinary
+                            res_c = cloudinary.uploader.upload(
+                                archivo_foto.getvalue(), 
+                                folder="inventario", 
+                                public_id=f"foto_{f_id}"
+                            )
                             
-                            # Crear nueva fila
+                            # 2. Preparar nueva fila
                             nueva = pd.DataFrame([{
                                 "ID": f_id, "Categoria": f_cat, "Fecha": datetime.now().strftime('%Y-%m-%d'), 
                                 "Talla": f_talla, "Color": f_col, "Compra": f_compra, 
                                 "Venta": f_venta, "Stock": f_stock, "Image_Ref": res_c['secure_url']
                             }])
                             
-                            # Actualizar DataFrame (eliminando ID duplicado si existe)
+                            # 3. Actualizar DataFrame (eliminando ID viejo si existía)
                             df_f = pd.concat([df_inventario[df_inventario["ID"].astype(str) != str(f_id)], nueva], ignore_index=True)
                             
-                            # Guardar en Google Sheets
+                            # 4. Guardar en Google Sheets
                             conn.update(spreadsheet=st.secrets["spreadsheet_url"], data=df_f)
                             
-                            # LIMPIEZA TOTAL PARA EVITAR REINICIOS BUCLE
+                            # --- 5. RESET TOTAL DEL ESTADO ---
+                            # Eliminamos la intención de registro para volver al menú de botones
+                            st.session_state.modo_registro = None
+                            
+                            # Eliminamos los datos temporales de la IA
                             if 'datos_ia' in st.session_state:
                                 del st.session_state.datos_ia
-                            st.success(f"✅ ¡ID {f_id} guardado con éxito!")
+                            
+                            # Mensaje de éxito breve antes de reiniciar
+                            st.toast(f"¡ID {f_id} guardado!", icon="✅")
+                            
+                            # 6. Reinicio forzado para limpiar el layout
                             st.rerun()
 
     
